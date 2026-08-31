@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V22 — Offline Manifest</title>
+<title>Carton Scanner V23 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -174,6 +174,28 @@ body{display:flex;flex-direction:column;}
 .cs-divider{height:1px;background:var(--border);margin:14px 0 12px;}
 .cs-tools-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--text-mid);text-transform:uppercase;margin-bottom:8px;}
 
+/* ---------- Collapsible sections ---------- */
+.collapse-header{cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;}
+.collapse-chevron{width:14px;height:14px;color:var(--text-mid);transition:transform .2s ease;margin-left:auto;}
+.collapse-chevron.collapsed{transform:rotate(-90deg);}
+#cameraCollapseBody, #cubiscanCollapseBody{overflow:hidden;}
+#cameraCollapseBody.collapsed, #cubiscanCollapseBody.collapsed{display:none;}
+
+/* ---------- Keyboard shortcut settings ---------- */
+.shortcut-row{
+  display:flex;align-items:center;justify-content:space-between;padding:10px 2px;
+  border-bottom:1px solid var(--border);
+}
+.shortcut-label{font-family:var(--sans);font-size:13px;color:var(--text-hi);}
+.shortcut-key{
+  font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--amber);
+  background:var(--surface-raised);border:1px solid var(--amber-dim);border-radius:6px;
+  padding:6px 12px;min-width:88px;text-align:center;cursor:pointer;
+}
+.shortcut-key.listening{background:var(--amber);color:var(--amber-ink);animation:pulse-listen 1s ease-in-out infinite;}
+@keyframes pulse-listen{0%,100%{opacity:1;}50%{opacity:.5;}}
+.shortcut-hint{font-family:var(--mono);font-size:10px;color:var(--text-mid);margin-top:8px;line-height:1.5;}
+
 /* ---------- Records list ---------- */
 .search-row{margin-bottom:12px;}
 .search-row input{
@@ -299,7 +321,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V22</h1>
+  <h1>Carton Scanner V23</h1>
 </div>
 
 <div class="screens">
@@ -308,8 +330,11 @@ body{display:flex;flex-direction:column;}
   <section class="screen active" data-screen="scan">
     <div class="scan-layout">
       <div class="capture-col">
-        <div class="section-label">Capture Barcode</div>
-        <div class="scan-card">
+        <div class="section-label collapse-header" id="cameraCollapseHeader">
+          Capture Barcode
+          <svg class="collapse-chevron" id="cameraChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="scan-card" id="cameraCollapseBody">
           <div class="viewfinder">
             <video id="video" playsinline muted style="display:none;"></video>
             <div id="viewPlaceholder" class="placeholder" style="display:flex;">Tap "Start Camera" to scan an EAN-13 barcode, or enter one manually below.</div>
@@ -356,33 +381,40 @@ body{display:flex;flex-direction:column;}
           <div id="ticketMeta" class="scan-status" style="padding:8px 0 0;background:none;border:none;font-size:10px;"></div>
         </div>
 
-        <div class="section-label">Cubiscan Dimensioner <span id="cubiscanStatusDot" class="cs-dot"></span></div>
+        <div class="section-label collapse-header" id="cubiscanCollapseHeader">
+          Cubiscan Dimensioner <span id="cubiscanStatusDot" class="cs-dot"></span>
+          <svg class="collapse-chevron" id="cubiscanChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
         <div class="scan-card" style="margin-bottom:16px;">
           <div style="padding:12px;">
-            <div id="cubiscanStatusText" class="scan-status" style="padding:0;background:none;border:none;">Not connected</div>
-            <div class="scan-controls" style="padding:10px 0 0;">
-              <button class="btn primary small" id="cubiscanConnectBtn">Connect</button>
-              <button class="btn primary small" id="cubiscanMeasureBtn" disabled>Get Measurement</button>
-              <button class="btn ghost small" id="cubiscanLogToggleBtn">Log</button>
+            <div class="scan-controls" style="padding:0 0 10px;">
+              <button class="btn primary small" id="cubiscanMeasureBtn" disabled style="flex:2;">Get Measurement</button>
             </div>
-            <pre id="cubiscanLog" class="cs-log" style="display:none;"></pre>
+            <div id="cubiscanCollapseBody">
+              <div id="cubiscanStatusText" class="scan-status" style="padding:0;background:none;border:none;">Not connected</div>
+              <div class="scan-controls" style="padding:10px 0 0;">
+                <button class="btn primary small" id="cubiscanConnectBtn">Connect</button>
+                <button class="btn ghost small" id="cubiscanLogToggleBtn">Log</button>
+              </div>
+              <pre id="cubiscanLog" class="cs-log" style="display:none;"></pre>
 
-            <div id="cubiscanToolsWrap" class="hidden">
-              <div class="cs-divider"></div>
-              <div class="cs-tools-label">Test &amp; Calibrate</div>
-              <div class="scan-controls" style="padding:0 0 10px;flex-wrap:wrap;">
-                <button class="btn ghost small" id="cubiscanTestBtn">Test Connection</button>
-                <button class="btn ghost small" id="cubiscanExportCalBtn">Export Calibration File</button>
+              <div id="cubiscanToolsWrap" class="hidden">
+                <div class="cs-divider"></div>
+                <div class="cs-tools-label">Test &amp; Calibrate</div>
+                <div class="scan-controls" style="padding:0 0 10px;flex-wrap:wrap;">
+                  <button class="btn ghost small" id="cubiscanTestBtn">Test Connection</button>
+                  <button class="btn ghost small" id="cubiscanExportCalBtn">Export Calibration File</button>
+                </div>
+                <div class="manual-row" style="margin-bottom:10px;">
+                  <input id="cubiscanCalWeightInput" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
+                  <button class="btn primary small" id="cubiscanCalScaleBtn">Cal. Scale</button>
+                </div>
+                <div class="scan-controls" style="padding:0;">
+                  <button class="btn ghost small" id="cubiscanCalDimBtn">Calibrate Dimensions</button>
+                </div>
+                <input type="file" id="cubiscanImportFileInput" accept=".txt" style="display:none;">
+                <button class="btn ghost small" id="cubiscanImportCalBtn" style="width:100%;margin-top:8px;">Import Calibration File</button>
               </div>
-              <div class="manual-row" style="margin-bottom:10px;">
-                <input id="cubiscanCalWeightInput" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
-                <button class="btn primary small" id="cubiscanCalScaleBtn">Cal. Scale</button>
-              </div>
-              <div class="scan-controls" style="padding:0;">
-                <button class="btn ghost small" id="cubiscanCalDimBtn">Calibrate Dimensions</button>
-              </div>
-              <input type="file" id="cubiscanImportFileInput" accept=".txt" style="display:none;">
-              <button class="btn ghost small" id="cubiscanImportCalBtn" style="width:100%;margin-top:8px;">Import Calibration File</button>
             </div>
           </div>
         </div>
@@ -447,6 +479,34 @@ body{display:flex;flex-direction:column;}
       <input id="importUrlInput" type="url" inputmode="url" placeholder="https://…" value="https://github.com/omaralsabbagh86/Carton_Scanner/blob/main/carton_manifest_Full.xlsx">
       <button class="btn primary small" id="importUrlBtn">Import</button>
     </div>
+
+    <div class="section-label" style="margin-top:22px;">Keyboard Shortcuts</div>
+    <div class="shortcut-row">
+      <div class="shortcut-label">Get Measurement</div>
+      <button class="shortcut-key" id="scMeasureBtn" data-action="measure"></button>
+    </div>
+    <div class="shortcut-row">
+      <div class="shortcut-label">Start New Scan</div>
+      <button class="shortcut-key" id="scNewBtn" data-action="newScan"></button>
+    </div>
+    <div class="shortcut-row">
+      <div class="shortcut-label">Clear Displayed Measurements</div>
+      <button class="shortcut-key" id="scClearBtn" data-action="clear"></button>
+    </div>
+    <div class="shortcut-row">
+      <div class="shortcut-label">Save Entered Parameters</div>
+      <button class="shortcut-key" id="scSaveBtn" data-action="save"></button>
+    </div>
+    <div class="shortcut-hint" id="shortcutHint">Tap a key combo above, then press the new combo you want. Applies immediately.</div>
+
+    <div class="section-label" style="margin-top:22px;">Danger Zone</div>
+    <div class="export-tile" style="border-color:var(--danger);">
+      <div class="info">
+        <div class="fmt" style="color:var(--danger);">Clear All Records</div>
+        <div class="desc">Permanently deletes every stored carton record from this device — for starting a brand new project. This cannot be undone.</div>
+      </div>
+      <button class="btn danger small" id="clearAllBtn">Clear All</button>
+    </div>
   </section>
 
 </div>
@@ -499,6 +559,17 @@ body{display:flex;flex-direction:column;}
     <div class="row" style="flex-direction:column;">
       <button class="btn primary" id="calibNextBtn" style="margin-bottom:8px;">Next</button>
       <button class="btn ghost" id="calibCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="clearAllModalBackdrop">
+  <div class="modal">
+    <h3 style="color:var(--danger);">Clear All Records?</h3>
+    <p id="clearAllModalText"></p>
+    <div class="row" style="flex-direction:column;">
+      <button class="btn danger" id="clearAllConfirmBtn" style="margin-bottom:8px;">Yes, Delete Everything</button>
+      <button class="btn ghost" id="clearAllCancelBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -1101,6 +1172,7 @@ function initExternalScannerListener(){
       // sensory confirmation a camera scan gives, and let the field's own
       // Enter handler carry out the lookup.
       wedgeFeedback();
+      autoCollapseCameraIfNeeded();
       return;
     }
     if(isTypingContext(active)) return; // some other field is legitimately capturing text — don't interfere
@@ -1108,6 +1180,7 @@ function initExternalScannerListener(){
     var norm = normalizeScannedValue(result.digits);
     if(norm){
       wedgeFeedback();
+      autoCollapseCameraIfNeeded();
       switchTab("scan");
       onCodeCaptured(norm);
     }
@@ -1240,6 +1313,8 @@ function fillForm(rec){
       input.placeholder = "0";
       if(rec && rec[f.key] !== undefined && rec[f.key] !== null){
         input.value = rec[f.key];
+      }else{
+        input.value = "0"; // no prior record for this barcode — start from zero, not blank
       }
     }
     input.id = "f_" + f.key;
@@ -1421,6 +1496,7 @@ function doDelete(){
 function autoSeedIfEmpty(){
   return dbAll().then(function(list){
     if(list.length > 0) return; // device already has data — never overwrite or duplicate
+    if(localStorage.getItem("cs_skipAutoSeed") === "true") return; // user explicitly started fresh — don't bring the bundled data back
     return fetch("./seed-data.json").then(function(r){
       if(!r.ok) throw new Error("seed fetch failed: " + r.status);
       return r.json();
@@ -1964,6 +2040,7 @@ async function cubiscanOpenAndConfigureUSB(device){
 function cubiscanRevealCalibrationTools(){
   var el = $("#cubiscanToolsWrap");
   if(el) el.classList.remove("hidden");
+  autoCollapseCubiscanIfNeeded();
 }
 
 /* ---------- Packet framing (shared by both transports) ---------- */
@@ -2088,12 +2165,16 @@ async function cubiscanReadFileResponse(timeoutMs){
 /* ---------- Measurement (unchanged parsing logic) ---------- */
 function cubiscanParseMeasurement(raw){
   var out = {};
-  var lengthM = raw.match(/L(\d{2,3}\.\d{1,2})/);
-  var widthM = raw.match(/W(\d{2,3}\.\d{1,2})/);
-  var heightM = raw.match(/H(\d{2,3}\.\d{1,2})/);
-  var weightStdM = raw.match(/K(\d{2,3}\.\d{2})/);
-  var weightExpM = raw.match(/M(\d{5,6}\.\d{2})/);
-  var dimWeightM = raw.match(/D(\d{2,3}\.\d{1,2}|\d{5,6}\.\d{2})/);
+  // Real-world firmware right-justifies values with SPACES rather than the zero-padding
+  // the manual's range notation implied (e.g. a zero reading arrives as "L  0.0", not
+  // "L000.00") — so these match any digit count before/after the decimal, with optional
+  // whitespace after the field-letter, rather than assuming a fixed width.
+  var lengthM = raw.match(/L\s*(\d+\.\d+)/);
+  var widthM = raw.match(/W\s*(\d+\.\d+)/);
+  var heightM = raw.match(/H\s*(\d+\.\d+)/);
+  var weightStdM = raw.match(/K\s*(\d+\.\d+)/);
+  var weightExpM = raw.match(/M\s*(\d+\.\d+)/);
+  var dimWeightM = raw.match(/D\s*(\d+\.\d+)/);
   if(lengthM) out.length = parseFloat(lengthM[1]);
   if(widthM) out.width = parseFloat(widthM[1]);
   if(heightM) out.height = parseFloat(heightM[1]);
@@ -2392,6 +2473,205 @@ async function cubiscanTryAutoReconnect(){
 }
 
 
+/* ============ Collapsible panels ============ */
+var COLLAPSE_KEY_CAMERA = "cs_cameraCollapsed";
+var COLLAPSE_KEY_CUBISCAN = "cs_cubiscanCollapsed";
+
+function setCollapsed(bodyId, chevronId, collapsed){
+  var body = $("#" + bodyId), chevron = $("#" + chevronId);
+  if(body) body.classList.toggle("collapsed", collapsed);
+  if(chevron) chevron.classList.toggle("collapsed", collapsed);
+}
+function initCollapsibles(){
+  setCollapsed("cameraCollapseBody", "cameraChevron", localStorage.getItem(COLLAPSE_KEY_CAMERA) === "true");
+  setCollapsed("cubiscanCollapseBody", "cubiscanChevron", localStorage.getItem(COLLAPSE_KEY_CUBISCAN) === "true");
+
+  $("#cameraCollapseHeader").addEventListener("click", function(){
+    var nowCollapsed = !$("#cameraCollapseBody").classList.contains("collapsed");
+    setCollapsed("cameraCollapseBody", "cameraChevron", nowCollapsed);
+    localStorage.setItem(COLLAPSE_KEY_CAMERA, String(nowCollapsed));
+  });
+  $("#cubiscanCollapseHeader").addEventListener("click", function(){
+    var nowCollapsed = !$("#cubiscanCollapseBody").classList.contains("collapsed");
+    setCollapsed("cubiscanCollapseBody", "cubiscanChevron", nowCollapsed);
+    localStorage.setItem(COLLAPSE_KEY_CUBISCAN, String(nowCollapsed));
+  });
+}
+/* Auto-collapse the camera once a physical/Bluetooth scanner is actually used —
+   called from the external-scanner capture path in initExternalScannerListener. */
+function autoCollapseCameraIfNeeded(){
+  var body = $("#cameraCollapseBody");
+  if(body && !body.classList.contains("collapsed")){
+    setCollapsed("cameraCollapseBody", "cameraChevron", true);
+    localStorage.setItem(COLLAPSE_KEY_CAMERA, "true");
+  }
+}
+/* Auto-collapse the Cubiscan panel once it successfully connects — called from
+   cubiscanRevealCalibrationTools, the shared point all 5 connect paths call. */
+function autoCollapseCubiscanIfNeeded(){
+  var body = $("#cubiscanCollapseBody");
+  if(body && !body.classList.contains("collapsed")){
+    setCollapsed("cubiscanCollapseBody", "cubiscanChevron", true);
+    localStorage.setItem(COLLAPSE_KEY_CUBISCAN, "true");
+  }
+}
+
+/* ============ Clear All Records ============ */
+function clearAllRecords(){
+  dbAll().then(function(list){
+    $("#clearAllModalText").textContent =
+      "This will permanently delete all " + list.length + " stored record" + (list.length === 1 ? "" : "s") +
+      " from this device, including any built-in starter data. This cannot be undone.";
+    $("#clearAllModalBackdrop").classList.add("show");
+  });
+}
+function doClearAllRecords(){
+  $("#clearAllModalBackdrop").classList.remove("show");
+  toast("Clearing all records…");
+  dbClearStore().then(function(){
+    localStorage.setItem("cs_skipAutoSeed", "true"); // don't silently bring the bundled dataset back
+    clearCapture();
+    refreshRecordsList();
+    refreshExportStats();
+    toast("All records cleared — starting fresh");
+  }).catch(function(){
+    toast("Could not clear records — please try again", true);
+  });
+}
+/* A single native bulk-clear is dramatically faster than deleting each key one at a
+   time — for a large dataset, one-by-one deletes can take many seconds with no
+   feedback, while clear() is near-instant regardless of how many records exist. */
+function dbClearStore(){
+  return new Promise(function(resolve, reject){
+    var tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = function(){ resolve(); };
+    tx.onerror = function(e){ reject(e); };
+  });
+}
+
+/* ============ Clear displayed measurements (Ctrl+C default) ============ */
+function clearMeasurementFields(){
+  if(!state.currentEan){ toast("Capture or enter a barcode first", true); return; }
+  FIELDS.forEach(function(f){
+    if(f.type === "choice"){
+      var sel = $("#f_" + f.key);
+      var manual = $("#f_" + f.key + "_manual");
+      if(sel) sel.value = "";
+      if(manual){ manual.value = ""; manual.style.display = "none"; }
+    }else if(f.type === "select"){
+      var el = $("#f_" + f.key);
+      if(el) el.value = f.defaultValue || f.options[0];
+    }else{
+      var el2 = $("#f_" + f.key);
+      if(el2) el2.value = "0";
+    }
+  });
+  if(state.currentIsExisting) markOverride();
+  toast("Measurements cleared");
+}
+
+/* ============ Keyboard shortcuts (remappable) ============ */
+var SHORTCUT_DEFAULTS = {measure: "ctrl+m", newScan: "ctrl+n", clear: "ctrl+c", save: "ctrl+s"};
+var SHORTCUT_LABELS = {measure: "Get Measurement", newScan: "Start New Scan", clear: "Clear Displayed Measurements", save: "Save Entered Parameters"};
+var shortcutListeningFor = null;
+
+function getShortcuts(){
+  try{
+    var stored = JSON.parse(localStorage.getItem("cs_shortcuts") || "{}");
+    return Object.assign({}, SHORTCUT_DEFAULTS, stored);
+  }catch(e){ return Object.assign({}, SHORTCUT_DEFAULTS); }
+}
+function setShortcut(action, combo){
+  var current = getShortcuts();
+  current[action] = combo;
+  localStorage.setItem("cs_shortcuts", JSON.stringify(current));
+  renderShortcutButtons();
+}
+function comboFromEvent(e){
+  var parts = [];
+  if(e.ctrlKey || e.metaKey) parts.push("ctrl");
+  if(e.altKey) parts.push("alt");
+  if(e.shiftKey) parts.push("shift");
+  var key = e.key.toLowerCase();
+  if(key !== "control" && key !== "meta" && key !== "alt" && key !== "shift"){
+    parts.push(key);
+  }
+  return parts.join("+");
+}
+function formatCombo(combo){
+  return combo.split("+").map(function(p){ return p.charAt(0).toUpperCase() + p.slice(1); }).join("+");
+}
+function renderShortcutButtons(){
+  var current = getShortcuts();
+  ["measure","newScan","clear","save"].forEach(function(action){
+    var btn = document.querySelector('.shortcut-key[data-action="' + action + '"]');
+    if(btn && shortcutListeningFor !== action){
+      btn.textContent = formatCombo(current[action]);
+      btn.classList.remove("listening");
+    }
+  });
+}
+function startListeningForShortcut(action){
+  shortcutListeningFor = action;
+  var btn = document.querySelector('.shortcut-key[data-action="' + action + '"]');
+  if(btn){ btn.textContent = "Press keys…"; btn.classList.add("listening"); }
+  $("#shortcutHint").textContent = "Press the new key combo for \"" + SHORTCUT_LABELS[action] + "\" now (Esc to cancel).";
+}
+function initShortcutSettings(){
+  renderShortcutButtons();
+  document.querySelectorAll(".shortcut-key").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      startListeningForShortcut(btn.dataset.action);
+    });
+  });
+}
+
+function runShortcutAction(action){
+  if(action === "measure"){ cubiscanGetMeasurement(); }
+  else if(action === "newScan"){ switchTab("scan"); clearCapture(); }
+  else if(action === "clear"){ clearMeasurementFields(); }
+  else if(action === "save"){ saveRecord(); }
+}
+
+function initGlobalShortcutListener(){
+  document.addEventListener("keydown", function(e){
+    // Capturing a new combo for the settings panel takes priority over firing an action
+    if(shortcutListeningFor){
+      if(e.key === "Escape"){
+        shortcutListeningFor = null;
+        renderShortcutButtons();
+        $("#shortcutHint").textContent = "Tap a key combo above, then press the new combo you want. Applies immediately.";
+        return;
+      }
+      if(["Control","Meta","Alt","Shift"].indexOf(e.key) !== -1) return; // wait for a real key
+      e.preventDefault();
+      var combo = comboFromEvent(e);
+      var actionBeingSet = shortcutListeningFor;
+      shortcutListeningFor = null; // clear BEFORE rendering, so the button's own guard doesn't skip its update
+      setShortcut(actionBeingSet, combo);
+      $("#shortcutHint").textContent = "Saved. Tap another combo above to change it.";
+      return;
+    }
+
+    if(!e.ctrlKey && !e.metaKey) return; // all four defaults are Ctrl-based; skip the common case fast
+    var combo = comboFromEvent(e);
+    var shortcuts = getShortcuts();
+    var action = null;
+    Object.keys(shortcuts).forEach(function(a){ if(shortcuts[a] === combo) action = a; });
+    if(!action) return;
+
+    // Ctrl+C only becomes "clear measurements" when nothing is actually selected —
+    // this way genuine copy-to-clipboard (e.g. copying a barcode) still works normally.
+    if(action === "clear" && combo === "ctrl+c"){
+      var sel = window.getSelection ? window.getSelection().toString() : "";
+      if(sel){ return; }
+    }
+    e.preventDefault();
+    runShortcutAction(action);
+  });
+}
+
 /* ============ Wire up ============ */
 function init(){
   openDB().then(function(){
@@ -2495,6 +2775,13 @@ function init(){
   $("#calibCancelBtn").addEventListener("click", calibHide);
   cubiscanTryAutoReconnect();
   initExternalScannerListener();
+  initCollapsibles();
+  initShortcutSettings();
+  initGlobalShortcutListener();
+
+  $("#clearAllBtn").addEventListener("click", clearAllRecords);
+  $("#clearAllConfirmBtn").addEventListener("click", doClearAllRecords);
+  $("#clearAllCancelBtn").addEventListener("click", function(){ $("#clearAllModalBackdrop").classList.remove("show"); });
 
   switchTab("scan");
 }
