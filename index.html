@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V21 — Offline Manifest</title>
+<title>Carton Scanner V22 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -299,7 +299,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V21</h1>
+  <h1>Carton Scanner V22</h1>
 </div>
 
 <div class="screens">
@@ -742,6 +742,14 @@ function switchTab(tab){
   if(tab === "records"){ refreshRecordsList(); }
   if(tab === "export"){ refreshExportStats(); }
   if(tab !== "scan"){ stopScanning(); }
+  // Keep the manual/scan field focused and ready — lets a wired or Bluetooth
+  // keyboard-wedge barcode scanner be used immediately with no extra tap.
+  if(tab === "scan"){
+    setTimeout(function(){
+      var el = $("#manualEan");
+      if(el && document.activeElement !== el) el.focus();
+    }, 50);
+  }
 }
 
 /* ============ Camera scanning (ZXing, fully local) ============ */
@@ -1040,6 +1048,72 @@ function stopScanning(){
   if(statusEl){ statusEl.textContent = "SCANNER IDLE"; statusEl.className = "scan-status"; }
 }
 
+/* ============ External barcode scanner support (USB / Bluetooth keyboard-wedge) ============
+   Dedicated handheld scanners (e.g. Symbol/Zebra LS2208, Datalogic QuickScan) almost
+   universally run in "keyboard wedge" mode by default: to the OS and browser they're
+   indistinguishable from a keyboard. Pulling the trigger "types" the barcode digits
+   followed by Enter into whatever currently has focus. This needs no special API and
+   works identically wired or Bluetooth, on the phone or the laptop — it's the same
+   mechanism either way.
+   The one thing worth doing in code is distinguishing a scanner's rapid keystroke burst
+   from a person typing by hand, so genuine manual typing elsewhere in the form is never
+   mistaken for a scan, and so scanning still works even when no field happens to be
+   focused (e.g. right after opening the app). */
+var wedge = {buffer: [], lastTime: 0, burstStart: 0, digitCount: 0};
+var WEDGE_MAX_GAP_MS = 45; // far tighter than any human's inter-keystroke timing
+
+function wedgeTrackKey(e){
+  var now = Date.now();
+  if(e.key === "Enter"){
+    var wasBurst = wedge.digitCount >= 8 && (now - wedge.burstStart) < (wedge.digitCount * WEDGE_MAX_GAP_MS + 150);
+    var digits = wedge.buffer.join("");
+    wedge.buffer = []; wedge.digitCount = 0;
+    return {wasBurst: wasBurst, digits: digits};
+  }
+  if(/^[0-9]$/.test(e.key)){
+    if(now - wedge.lastTime > WEDGE_MAX_GAP_MS){ wedge.buffer = []; wedge.digitCount = 0; wedge.burstStart = now; }
+    wedge.buffer.push(e.key);
+    wedge.digitCount++;
+    wedge.lastTime = now;
+  }else if(e.key !== "Shift" && e.key !== "Control" && e.key !== "Alt"){
+    wedge.buffer = []; wedge.digitCount = 0;
+  }
+  return null;
+}
+function isTypingContext(el){
+  if(!el) return false;
+  var tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+function wedgeFeedback(){
+  if(navigator.vibrate) navigator.vibrate(240);
+  playBeep();
+  flashCaptureConfirm();
+}
+function initExternalScannerListener(){
+  document.addEventListener("keydown", function(e){
+    var result = wedgeTrackKey(e);
+    if(e.key !== "Enter" || !result || !result.wasBurst) return;
+
+    var active = document.activeElement;
+    if(active && active.id === "manualEan"){
+      // Field already received the real keystrokes natively; just add the same
+      // sensory confirmation a camera scan gives, and let the field's own
+      // Enter handler carry out the lookup.
+      wedgeFeedback();
+      return;
+    }
+    if(isTypingContext(active)) return; // some other field is legitimately capturing text — don't interfere
+
+    var norm = normalizeScannedValue(result.digits);
+    if(norm){
+      wedgeFeedback();
+      switchTab("scan");
+      onCodeCaptured(norm);
+    }
+  });
+}
+
 /* ============ Capture flow ============ */
 function onCodeCaptured(code){
   $("#manualEan").value = code;
@@ -1270,6 +1344,7 @@ function clearCapture(){
   state.overrideMode = false;
   $("#entryZone").classList.add("hidden");
   $("#manualEan").value = "";
+  $("#manualEan").focus(); // ready for the next scan with no extra tap
 }
 
 /* ============ Records list ============ */
@@ -1697,7 +1772,9 @@ function applyImport(incoming, mode){
    cubiscanConnectUSB and the cubiscanWriteBytes / cubiscanReadUntil pair. */
 var STX = 0x02, ETX = 0x03, CR = 0x0D, LF = 0x0A;
 var cubiscan = {
-  transport: null,   // "serial" | "usb" | null
+  transport: null,   // "hid" | "serial" | "usb" | null
+  hidDevice: null,   // HIDDevice (WebHID path — the correct match for this device)
+  hidRxBuffer: [],
   device: null,      // USB device (WebUSB path)
   serialPort: null,  // SerialPort (Web Serial path)
   controlIface: null,
@@ -1731,18 +1808,64 @@ function cubiscanBytesToDebugString(bytes){
   }).join("");
 }
 
-/* ---------- Connect (dispatcher + both transports) ---------- */
+/* ---------- Connect (dispatcher across three transports) ----------
+   The CubiScan 100-T's USB port is confirmed (both by its own technical
+   manual AND by Android's own "Open Explorer to handle LPC18xx HID?"
+   prompt) to be a HID-class USB device (VID 0x1FC9, PID 0x0081) — not a
+   CDC-ACM serial device. WebHID is the API built for exactly this device
+   class, and is well-supported on desktop Chrome/Edge — so it's tried
+   first. WebUSB is kept as a fallback in case a given browser lets it
+   reclaim the HID interface. Web Serial is tried last; it will never
+   match this specific HID descriptor, but is harmless to keep for any
+   other CubiScan unit that might expose a true CDC serial port instead. */
 async function cubiscanConnect(){
+  var hasHID = navigator.hid && typeof navigator.hid.requestDevice === "function";
   var hasSerial = navigator.serial && typeof navigator.serial.requestPort === "function";
   var hasUSB = navigator.usb && typeof navigator.usb.requestDevice === "function";
+
+  if(hasHID){
+    try{ return await cubiscanConnectHID(); }
+    catch(e){ /* fall through to try another transport */ }
+  }
+  if(hasUSB){
+    try{ return await cubiscanConnectUSB(); }
+    catch(e){ /* fall through */ }
+  }
   if(hasSerial){
     return cubiscanConnectSerial();
-  }else if(hasUSB){
-    return cubiscanConnectUSB();
-  }else{
-    cubiscanSetStatus("No WebUSB/Web Serial support in this browser", "err");
+  }
+  if(!hasHID && !hasUSB && !hasSerial){
+    cubiscanSetStatus("No WebHID/WebUSB/Web Serial support in this browser", "err");
     toast("This browser can't talk to USB devices — try Chrome or Edge", true);
   }
+}
+
+async function cubiscanConnectHID(){
+  var devices = await navigator.hid.requestDevice({
+    filters: [{vendorId: 0x1FC9, productId: 0x0081}, {vendorId: 0x1FC9}]
+  });
+  if(!devices || !devices.length){
+    cubiscanLog("HID picker closed with no device selected");
+    return;
+  }
+  var device = devices[0];
+  await device.open();
+
+  cubiscan.hidDevice = device;
+  cubiscan.hidRxBuffer = [];
+  cubiscan.transport = "hid";
+  cubiscan.connected = true;
+
+  device.addEventListener("inputreport", function(event){
+    var data = new Uint8Array(event.data.buffer);
+    for(var i=0;i<data.length;i++){ cubiscan.hidRxBuffer.push(data[i]); }
+  });
+
+  cubiscanLog("Connected via WebHID — " + (device.productName || "CubiScan 100-T"));
+  cubiscanSetStatus("Connected (WebHID)", "on");
+  $("#cubiscanMeasureBtn").disabled = false;
+  $("#cubiscanConnectBtn").textContent = "Reconnect";
+  cubiscanRevealCalibrationTools();
 }
 
 async function cubiscanConnectSerial(){
@@ -1861,7 +1984,14 @@ function cubiscanBuildBinaryPacket(cmdChar, prefixStr, dataBytes){
 
 /* ---------- Transport-agnostic write/read ---------- */
 async function cubiscanWriteBytes(bytes){
-  if(cubiscan.transport === "serial"){
+  if(cubiscan.transport === "hid"){
+    var reportId = 0;
+    try{
+      var outReports = cubiscan.hidDevice.collections && cubiscan.hidDevice.collections[0] && cubiscan.hidDevice.collections[0].outputReports;
+      if(outReports && outReports.length){ reportId = outReports[0].reportId || 0; }
+    }catch(e){}
+    await cubiscan.hidDevice.sendReport(reportId, bytes);
+  }else if(cubiscan.transport === "serial"){
     var writer = cubiscan.serialPort.writable.getWriter();
     try{ await writer.write(bytes); } finally { writer.releaseLock(); }
   }else{
@@ -1871,11 +2001,26 @@ async function cubiscanWriteBytes(bytes){
 }
 
 /* Reads chunks until isDoneFn(collectedByteArray) returns true, or timeout.
-   Shared by both transports so calibration/measure/file logic above doesn't
-   need to know which one is active. */
+   Shared by all three transports so calibration/measure/file logic above
+   doesn't need to know which one is active. HID delivers data via events
+   rather than pull-based reads, so it polls a buffer filled by the
+   "inputreport" listener registered in cubiscanConnectHID instead of
+   actively requesting chunks. */
 async function cubiscanReadUntil(timeoutMs, isDoneFn){
   timeoutMs = timeoutMs || 4000;
   var start = Date.now();
+
+  if(cubiscan.transport === "hid"){
+    cubiscan.hidRxBuffer = cubiscan.hidRxBuffer || [];
+    while(Date.now() - start < timeoutMs){
+      if(isDoneFn(cubiscan.hidRxBuffer)) break;
+      await new Promise(function(r){ setTimeout(r, 50); });
+    }
+    var hidResult = cubiscan.hidRxBuffer.slice();
+    cubiscan.hidRxBuffer = [];
+    return hidResult;
+  }
+
   var collected = [];
   var serialReader = (cubiscan.transport === "serial") ? cubiscan.serialPort.readable.getReader() : null;
   try{
@@ -2188,6 +2333,31 @@ async function cubiscanImportCalibrationFile(file){
 /* ---------- Auto-reconnect to a previously-authorized device (no prompt) ---------- */
 async function cubiscanTryAutoReconnect(){
   try{
+    if(navigator.hid && typeof navigator.hid.getDevices === "function"){
+      var hidDevices = await navigator.hid.getDevices();
+      var hidMatch = hidDevices.filter(function(d){ return d.vendorId === 0x1FC9; })[0];
+      if(hidMatch){
+        cubiscanLog("Previously authorized HID device found — reconnecting silently");
+        await hidMatch.open();
+        cubiscan.hidDevice = hidMatch;
+        cubiscan.hidRxBuffer = [];
+        cubiscan.transport = "hid";
+        cubiscan.connected = true;
+        hidMatch.addEventListener("inputreport", function(event){
+          var data = new Uint8Array(event.data.buffer);
+          for(var i=0;i<data.length;i++){ cubiscan.hidRxBuffer.push(data[i]); }
+        });
+        cubiscanSetStatus("Connected (WebHID)", "on");
+        $("#cubiscanMeasureBtn").disabled = false;
+        $("#cubiscanConnectBtn").textContent = "Reconnect";
+        cubiscanRevealCalibrationTools();
+        return;
+      }
+    }
+  }catch(e){
+    cubiscanLog("HID auto-reconnect skipped: " + e.message);
+  }
+  try{
     if(navigator.serial && typeof navigator.serial.getPorts === "function"){
       var ports = await navigator.serial.getPorts();
       if(ports.length){
@@ -2324,6 +2494,7 @@ function init(){
   $("#calibNextBtn").addEventListener("click", cubiscanCalibNext);
   $("#calibCancelBtn").addEventListener("click", calibHide);
   cubiscanTryAutoReconnect();
+  initExternalScannerListener();
 
   switchTab("scan");
 }

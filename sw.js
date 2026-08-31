@@ -1,4 +1,4 @@
-var CACHE_NAME = "carton-scanner-v24";
+var CACHE_NAME = "carton-scanner-v26";
 var ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./seed-data.json"];
 
 self.addEventListener("install", function(event){
