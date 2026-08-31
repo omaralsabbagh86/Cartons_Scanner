@@ -146,7 +146,7 @@ body{display:flex;flex-direction:column;}
 .ticket .code-row{display:flex;align-items:baseline;gap:10px;}
 .ticket .code{font-family:var(--mono);font-size:24px;letter-spacing:.04em;color:var(--text-hi);word-break:break-all;}
 .ticket .code-label{font-family:var(--mono);font-size:10px;color:var(--text-mid);letter-spacing:.1em;text-transform:uppercase;}
-.barcode-svg{margin-top:10px;height:56px;width:100%;display:block;background:#fff;border-radius:4px;padding:0;}
+.barcode-svg{margin:10px auto 0;height:56px;width:100%;max-width:13cm;display:block;background:#fff;border-radius:4px;padding:0;}
 .barcode-svg rect{fill:#000;}
 .barcode-svg text{fill:#000;}
 
@@ -172,6 +172,11 @@ body{display:flex;flex-direction:column;}
   padding:8px 10px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--success);white-space:pre-wrap;word-break:break-all;
 }
 .cs-divider{height:1px;background:var(--border);margin:14px 0 12px;}
+.cs-hint{font-family:var(--mono);font-size:10px;color:var(--text-mid);line-height:1.6;padding:0 2px;}
+#cubiscanLogDateInput{
+  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-hi);
+  font-family:var(--mono);font-size:13px;padding:10px 10px;min-width:0;color-scheme:dark;
+}
 .cs-tools-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--text-mid);text-transform:uppercase;margin-bottom:8px;}
 
 /* ---------- Collapsible sections ---------- */
@@ -405,7 +410,12 @@ body{display:flex;flex-direction:column;}
                   <button class="btn ghost small" id="cubiscanTestBtn">Test Connection</button>
                   <button class="btn ghost small" id="cubiscanExportCalBtn">Export Calibration File</button>
                 </div>
-                <div class="manual-row" style="margin-bottom:10px;">
+                <div class="manual-row" style="margin-bottom:4px;">
+                  <input id="cubiscanLogDateInput" type="date">
+                  <button class="btn ghost small" id="cubiscanExportLogBtn">Export Daily Log</button>
+                </div>
+                <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card — an independent backup that exists even if this app never captured a reading. If nothing downloads, the device's internal clock may be unset; check <span style="color:var(--amber);">CONFIGURE → Other → Date/Time</span> on its touchscreen, or try Jan 1.</div>
+                <div class="manual-row" style="margin-bottom:10px;margin-top:10px;">
                   <input id="cubiscanCalWeightInput" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
                   <button class="btn primary small" id="cubiscanCalScaleBtn">Cal. Scale</button>
                 </div>
@@ -2380,6 +2390,38 @@ async function cubiscanExportCalibrationFile(){
   }
 }
 
+/* Pulls a day's automatic measurement log straight from the Cubiscan's own internal
+   SD card ("Alibi Memory") — the device logs every measurement to data\MM\DD.txt
+   continuously with no configuration needed, independent of whatever this app has
+   or hasn't captured. Same Get/Stream file-transfer mechanism as the calibration
+   file export above, just a different filename. */
+async function cubiscanExportDailyLog(){
+  if(!cubiscan.connected){ toast("Connect to the Cubiscan first", true); return; }
+  var dateVal = $("#cubiscanLogDateInput").value; // "YYYY-MM-DD"
+  if(!dateVal){ toast("Pick a date first", true); return; }
+  var parts = dateVal.split("-");
+  var mm = parts[1], dd = parts[2];
+  var filename = "data\\" + mm + "\\" + dd + ".txt";
+  cubiscanSetStatus("Exporting daily log…", "on");
+  try{
+    await cubiscanWriteBytes(cubiscanBuildPacket("g", "S" + filename));
+    var fileResult = await cubiscanReadFileResponse(15000);
+    if(!fileResult){
+      toast("No log for that date — check the Log, or the device's clock may be unset", true);
+      cubiscanSetStatus("Connected", "on");
+      return;
+    }
+    var blob = new Blob([fileResult.bytes], {type: "text/plain"});
+    downloadBlob(blob, "cubiscan_log_" + mm + "-" + dd + ".txt");
+    toast("Daily log exported");
+    cubiscanSetStatus("Connected", "on");
+  }catch(e){
+    cubiscanLog("Daily log export failed: " + e.message);
+    toast("Export failed — " + e.message, true);
+    cubiscanSetStatus("Connected", "on");
+  }
+}
+
 async function cubiscanImportCalibrationFile(file){
   if(!cubiscan.connected){ toast("Connect to the Cubiscan first", true); return; }
   cubiscanSetStatus("Importing calibration file…", "on");
@@ -2763,6 +2805,12 @@ function init(){
   });
   $("#cubiscanTestBtn").addEventListener("click", cubiscanTestConnection);
   $("#cubiscanExportCalBtn").addEventListener("click", cubiscanExportCalibrationFile);
+  $("#cubiscanExportLogBtn").addEventListener("click", cubiscanExportDailyLog);
+  (function(){
+    var d = new Date();
+    var iso = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+    $("#cubiscanLogDateInput").value = iso;
+  })();
   $("#cubiscanCalScaleBtn").addEventListener("click", cubiscanStartScaleCalibration);
   $("#cubiscanCalDimBtn").addEventListener("click", cubiscanStartDimCalibration);
   $("#cubiscanImportCalBtn").addEventListener("click", function(){ $("#cubiscanImportFileInput").click(); });
