@@ -490,6 +490,15 @@ body{display:flex;flex-direction:column;}
       <button class="btn primary small" id="importUrlBtn">Import</button>
     </div>
 
+    <div class="export-tile" style="margin-top:14px;">
+      <div class="info">
+        <div class="fmt">Import from Cubiscan Log</div>
+        <div class="desc">Load raw .txt files straight from the Cubiscan's SD card (the "data" folder). Any line with a barcode attached fills in real measured dimensions and weight — new barcodes get a new record, existing ones only have their measurements updated, nothing else touched. Select as many files as you like at once.</div>
+      </div>
+    </div>
+    <input type="file" id="cubiscanLogImportInput" accept=".txt" multiple style="display:none;">
+    <button class="btn primary" id="cubiscanLogImportBtn" style="width:100%;">Choose Cubiscan Log File(s)</button>
+
     <div class="section-label" style="margin-top:22px;">Keyboard Shortcuts</div>
     <div class="shortcut-row">
       <div class="shortcut-label">Get Measurement</div>
@@ -1673,7 +1682,7 @@ function rowsToRecords(rows){
   return out;
 }
 
-var importState = {pending: null};
+var importState = {pending: null, applyFn: null};
 
 function xlsxBufferToRows(buffer){
   var wb = XLSX.read(new Uint8Array(buffer), {type:"array"});
@@ -1809,6 +1818,144 @@ function applyImport(incoming, mode){
     if(counts.overridden) msg += ", " + counts.overridden + " overridden";
     if(counts.skipped) msg += ", " + counts.skipped + " kept (skipped)";
     toast("Import complete — " + msg);
+    refreshRecordsList();
+    refreshExportStats();
+  }).catch(function(){
+    toast("Import failed — please try again", true);
+  });
+}
+
+/* ============ Import from Cubiscan raw log files ============
+   The device's own SD card stores its complete measurement history as plain-text
+   log files (data\<folder>\<file>.txt) — not organized by calendar date the way the
+   in-app "Export Daily Log" feature implies, but as a running sequence of every
+   measurement ever taken, in the same MAC/MAH line format already used elsewhere in
+   this file. Most lines have no barcode attached (a bare dimension check); only
+   lines with a real barcode are usable here. When several lines share a barcode
+   (re-measured over time), the highest Count value — not file order — decides which
+   reading wins, since files aren't guaranteed to be selected or read in order. */
+function parseCubiscanLogText(text){
+  var lines = text.split(/\r\n|\r|\n/);
+  var byBarcode = {};
+  lines.forEach(function(line){
+    var m = line.match(/^MA[CH](\d{6}),(\d+),(\S+),(\S+),(.*)$/);
+    if(!m) return;
+    var count = parseInt(m[2], 10);
+    var rest = m[5];
+    var bcMatch = rest.match(/,D,(\d*),[0-9A-Fa-f]+\s*$/);
+    if(!bcMatch || !bcMatch[1]) return; // no barcode on this line — a bare dimension check, not usable
+    var barcode = normalizeScannedValue(bcMatch[1]);
+    if(!barcode) return; // not a valid 12/13-digit code
+    var lengthM = rest.match(/L\s*(\d+\.\d+)/);
+    var widthM = rest.match(/W\s*(\d+\.\d+)/);
+    var heightM = rest.match(/H\s*(\d+\.\d+)/);
+    var weightM = rest.match(/M\s*(\d+\.\d+)/) || rest.match(/K\s*(\d+\.\d+)/);
+    if(!lengthM || !widthM || !heightM || !weightM) return;
+    var existing = byBarcode[barcode];
+    if(existing && existing.count >= count) return; // already have an equal-or-newer reading for this barcode
+    byBarcode[barcode] = {
+      count: count,
+      length: parseFloat(lengthM[1]),
+      width: parseFloat(widthM[1]),
+      height: parseFloat(heightM[1]),
+      weight: parseFloat(weightM[1])
+    };
+  });
+  return byBarcode;
+}
+
+function defaultNewRecordFields(){
+  var out = {};
+  FIELDS.forEach(function(f){
+    if(f.type === "choice"){ out[f.key] = ""; }
+    else if(f.type === "select"){ out[f.key] = f.defaultValue || f.options[0]; }
+    else{ out[f.key] = 0; }
+  });
+  return out;
+}
+
+function handleCubiscanLogFiles(fileList){
+  var files = Array.prototype.slice.call(fileList || []);
+  if(!files.length) return;
+  toast("Reading " + files.length + " file" + (files.length===1?"":"s") + "…");
+  Promise.all(files.map(function(file){
+    return file.text().then(function(text){ return parseCubiscanLogText(text); });
+  })).then(function(parsedList){
+    // Merge across all files, same highest-count-wins rule as within a single file
+    var merged = {};
+    parsedList.forEach(function(byBarcode){
+      Object.keys(byBarcode).forEach(function(bc){
+        var candidate = byBarcode[bc];
+        var current = merged[bc];
+        if(!current || candidate.count > current.count){ merged[bc] = candidate; }
+      });
+    });
+    var incoming = Object.keys(merged).map(function(ean){
+      var d = merged[ean];
+      return {ean13: ean, cartonLength: d.length, cartonWidth: d.width, cartonHeight: d.height, cartonWeight: d.weight};
+    });
+    if(!incoming.length){
+      toast("No lines with a barcode and full measurement found in the selected file(s)", true);
+      return;
+    }
+    dbAll().then(function(existingList){
+      var existingMap = {};
+      existingList.forEach(function(r){ existingMap[r.ean13] = r; });
+      var conflicts = incoming.filter(function(r){ return !!existingMap[r.ean13]; }).length;
+      var fresh = incoming.length - conflicts;
+
+      importState.pending = incoming;
+      importState.applyFn = applyCubiscanLogImport;
+      if(conflicts === 0){
+        toast("Importing " + incoming.length + " measurement" + (incoming.length===1?"":"s") + " from the Cubiscan log…");
+        applyCubiscanLogImport(incoming, "override");
+      }else{
+        $("#importModalText").textContent =
+          fresh + " new record" + (fresh===1?"":"s") + " will be created from measured dimensions. " +
+          conflicts + " already exist on this device — their dimensions/weight can be updated from the log, " +
+          "or left as-is. Other fields (quantities, pallet info) are never touched either way.";
+        $("#importModalBackdrop").classList.add("show");
+      }
+    });
+  }).catch(function(){
+    toast("Could not read one or more of the selected files", true);
+  });
+}
+
+function applyCubiscanLogImport(records, mode){
+  dbAll().then(function(existingList){
+    var existingMap = {};
+    existingList.forEach(function(r){ existingMap[r.ean13] = r; });
+    var toWrite = [];
+    var added = 0, updated = 0, skipped = 0;
+    records.forEach(function(rec){
+      var existing = existingMap[rec.ean13];
+      if(!existing){
+        var toSave = Object.assign(defaultNewRecordFields(), rec);
+        toSave.createdAt = now();
+        toSave.updatedAt = now();
+        toWrite.push(toSave);
+        added++;
+      }else if(mode === "override"){
+        // Only the four measured fields are present on `rec`, so this only ever
+        // touches dimensions/weight — every other field on the existing record
+        // (quantities, pallet type, etc.) is left completely untouched.
+        var merged = Object.assign({}, existing, rec);
+        merged.updatedAt = now();
+        toWrite.push(merged);
+        updated++;
+      }else{
+        skipped++;
+      }
+    });
+    return dbBulkPut(toWrite).then(function(){
+      return {added: added, updated: updated, skipped: skipped};
+    });
+  }).then(function(counts){
+    var msg = counts.added + " new record" + (counts.added===1?"":"s") + " created";
+    if(counts.updated) msg += ", " + counts.updated + " updated with measured dimensions";
+    if(counts.skipped) msg += ", " + counts.skipped + " left unchanged";
+    toast("Cubiscan log import complete — " + msg);
     refreshRecordsList();
     refreshExportStats();
   }).catch(function(){
@@ -1963,6 +2110,17 @@ async function cubiscanConnectHID(){
     var data = new Uint8Array(event.data.buffer);
     for(var i=0;i<data.length;i++){ cubiscan.hidRxBuffer.push(data[i]); }
   });
+
+  // The device appears to send some unsolicited bytes right as the connection is
+  // established (observed repeatedly: the very first command after a fresh connect
+  // gets a corrupted response, while every later command in the same session works
+  // cleanly). Let any such handshake noise land in the buffer, then discard it, so
+  // the first real command starts from a guaranteed-clean slate.
+  await new Promise(function(resolve){ setTimeout(resolve, 250); });
+  if(cubiscan.hidRxBuffer.length){
+    cubiscanLog("Discarded " + cubiscan.hidRxBuffer.length + " unsolicited byte(s) received right at connect time");
+  }
+  cubiscan.hidRxBuffer = [];
 
   cubiscanLog("Connected via WebHID — " + (device.productName || "CubiScan 100-T"));
   cubiscanSetStatus("Connected (WebHID)", "on");
@@ -2525,6 +2683,10 @@ async function cubiscanTryAutoReconnect(){
           var data = new Uint8Array(event.data.buffer);
           for(var i=0;i<data.length;i++){ cubiscan.hidRxBuffer.push(data[i]); }
         });
+        // Same connect-time noise handling as the manual connect path — discard
+        // anything that arrives before we've sent a real command.
+        await new Promise(function(resolve){ setTimeout(resolve, 250); });
+        cubiscan.hidRxBuffer = [];
         cubiscanSetStatus("Connected (WebHID)", "on");
         $("#cubiscanMeasureBtn").disabled = false;
         $("#cubiscanConnectBtn").textContent = "Reconnect";
@@ -2820,25 +2982,35 @@ function init(){
   $("#importUrlInput").addEventListener("keydown", function(e){
     if(e.key === "Enter"){ handleImportFromUrl(this.value); }
   });
+  $("#cubiscanLogImportBtn").addEventListener("click", function(){ $("#cubiscanLogImportInput").click(); });
+  $("#cubiscanLogImportInput").addEventListener("change", function(e){
+    handleCubiscanLogFiles(e.target.files);
+    e.target.value = "";
+  });
   $("#importKeepBtn").addEventListener("click", function(){
     $("#importModalBackdrop").classList.remove("show");
     if(importState.pending){
+      var fn = importState.applyFn || applyImport;
       toast("Importing " + importState.pending.length + " record" + (importState.pending.length===1?"":"s") + "…");
-      applyImport(importState.pending, "keep");
+      fn(importState.pending, "keep");
     }
     importState.pending = null;
+    importState.applyFn = null;
   });
   $("#importOverrideBtn").addEventListener("click", function(){
     $("#importModalBackdrop").classList.remove("show");
     if(importState.pending){
+      var fn2 = importState.applyFn || applyImport;
       toast("Importing " + importState.pending.length + " record" + (importState.pending.length===1?"":"s") + "…");
-      applyImport(importState.pending, "override");
+      fn2(importState.pending, "override");
     }
     importState.pending = null;
+    importState.applyFn = null;
   });
   $("#importCancelBtn").addEventListener("click", function(){
     $("#importModalBackdrop").classList.remove("show");
     importState.pending = null;
+    importState.applyFn = null;
   });
 
   $("#modalCancel").addEventListener("click", function(){ $("#modalBackdrop").classList.remove("show"); });
