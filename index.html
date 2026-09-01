@@ -415,6 +415,15 @@ body{display:flex;flex-direction:column;}
                   <button class="btn ghost small" id="cubiscanExportLogBtn">Export Daily Log</button>
                 </div>
                 <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card — an independent backup that exists even if this app never captured a reading. If nothing downloads, the device's internal clock may be unset; check <span style="color:var(--amber);">CONFIGURE → Other → Date/Time</span> on its touchscreen, or try Jan 1.</div>
+
+                <div class="cs-divider" style="margin:12px 0;"></div>
+                <div class="cs-tools-label">Fetch File by Exact Path</div>
+                <div class="manual-row" style="margin-bottom:4px;">
+                  <input id="cubiscanRawPathInput" type="text" placeholder="data\01\067.txt" value="data\01\067.txt">
+                  <button class="btn ghost small" id="cubiscanFetchRawBtn">Fetch</button>
+                </div>
+                <div class="cs-hint">Diagnostic tool — requests a file by its literal path on the SD card, bypassing any date guessing. Use this with a folder/filename you already know is real (e.g. from browsing the card directly on a PC) to confirm exactly how this device names its own files.</div>
+
                 <div class="manual-row" style="margin-bottom:10px;margin-top:10px;">
                   <input id="cubiscanCalWeightInput" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
                   <button class="btn primary small" id="cubiscanCalScaleBtn">Cal. Scale</button>
@@ -2768,6 +2777,38 @@ async function cubiscanExportDailyLog(dateInputId){
   }
 }
 
+/* Diagnostic tool: requests a file by its literal path, bypassing any date-based
+   guessing entirely. The manual documents "data\MM\DD.txt" as the daily-log
+   convention, but real testing on this unit suggests that may not match how this
+   specific firmware actually organizes its SD card (the card's own "data" folder
+   has 10 numbered subfolders, not 12 — inconsistent with a month-based scheme).
+   This lets a known-real path (found by browsing the card directly) be requested
+   through the same live connection, to confirm the real naming convention. */
+async function cubiscanFetchRawPath(){
+  if(!cubiscan.connected){ toast("Connect to the Cubiscan first", true); return; }
+  var rawPath = $("#cubiscanRawPathInput").value.trim();
+  if(!rawPath){ toast("Enter a file path first", true); return; }
+  cubiscanSetStatus("Fetching " + rawPath + "…", "on");
+  try{
+    await cubiscanWriteBytes(cubiscanBuildPacket("g", "S" + rawPath));
+    var fileResult = await cubiscanReadFileResponse(15000);
+    if(!fileResult){
+      toast("No file at that exact path — check the Log", true);
+      cubiscanSetStatus("Connected", "on");
+      return;
+    }
+    var blob = new Blob([fileResult.bytes], {type: "text/plain"});
+    var safeName = rawPath.replace(/[\\/]/g, "_");
+    downloadBlob(blob, "cubiscan_" + safeName);
+    toast("File fetched successfully");
+    cubiscanSetStatus("Connected", "on");
+  }catch(e){
+    cubiscanLog("Raw path fetch failed: " + e.message);
+    toast("Fetch failed — " + e.message, true);
+    cubiscanSetStatus("Connected", "on");
+  }
+}
+
 async function cubiscanImportCalibrationFile(file){
   if(!cubiscan.connected){ toast("Connect to the Cubiscan first", true); return; }
   cubiscanSetStatus("Importing calibration file…", "on");
@@ -3168,6 +3209,7 @@ function init(){
   $("#cubiscanTestBtn").addEventListener("click", cubiscanTestConnection);
   $("#cubiscanExportCalBtn").addEventListener("click", cubiscanExportCalibrationFile);
   $("#cubiscanExportLogBtn").addEventListener("click", function(){ cubiscanExportDailyLog("cubiscanLogDateInput"); });
+  $("#cubiscanFetchRawBtn").addEventListener("click", cubiscanFetchRawPath);
   (function(){
     var d = new Date();
     var iso = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
