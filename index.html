@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V26 — Offline Manifest</title>
+<title>Carton Scanner V27 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -326,7 +326,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V26</h1>
+  <h1>Carton Scanner V27</h1>
 </div>
 
 <div class="screens">
@@ -532,6 +532,15 @@ body{display:flex;flex-direction:column;}
             <button class="btn ghost small" id="cubiscanExportLogBtnExp">Export Daily Log</button>
           </div>
           <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card. If nothing downloads, the device's internal clock may be unset; check <span style="color:var(--amber);">CONFIGURE → Other → Date/Time</span> on its touchscreen, or try Jan 1.</div>
+
+          <div class="cs-divider" style="margin:12px 0;"></div>
+          <div class="cs-tools-label">Fetch File by Exact Path</div>
+          <div class="manual-row" style="margin-bottom:4px;">
+            <input id="cubiscanRawPathInputExp" type="text" placeholder="data\01\067.txt" value="data\01\067.txt">
+            <button class="btn ghost small" id="cubiscanFetchRawBtnExp">Fetch</button>
+          </div>
+          <div class="cs-hint">Diagnostic tool — requests a file by its literal path on the SD card, bypassing any date guessing. Use this with a folder/filename you already know is real (e.g. from browsing the card directly on a PC) to confirm exactly how this device names its own files.</div>
+
           <div class="manual-row" style="margin-bottom:10px;margin-top:10px;">
             <input id="cubiscanCalWeightInputExp" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
             <button class="btn primary small" id="cubiscanCalScaleBtnExp">Cal. Scale</button>
@@ -2784,9 +2793,9 @@ async function cubiscanExportDailyLog(dateInputId){
    has 10 numbered subfolders, not 12 — inconsistent with a month-based scheme).
    This lets a known-real path (found by browsing the card directly) be requested
    through the same live connection, to confirm the real naming convention. */
-async function cubiscanFetchRawPath(){
+async function cubiscanFetchRawPath(inputId){
   if(!cubiscan.connected){ toast("Connect to the Cubiscan first", true); return; }
-  var rawPath = $("#cubiscanRawPathInput").value.trim();
+  var rawPath = $("#" + (inputId || "cubiscanRawPathInput")).value.trim();
   if(!rawPath){ toast("Enter a file path first", true); return; }
   cubiscanSetStatus("Fetching " + rawPath + "…", "on");
   try{
@@ -3209,7 +3218,8 @@ function init(){
   $("#cubiscanTestBtn").addEventListener("click", cubiscanTestConnection);
   $("#cubiscanExportCalBtn").addEventListener("click", cubiscanExportCalibrationFile);
   $("#cubiscanExportLogBtn").addEventListener("click", function(){ cubiscanExportDailyLog("cubiscanLogDateInput"); });
-  $("#cubiscanFetchRawBtn").addEventListener("click", cubiscanFetchRawPath);
+  $("#cubiscanFetchRawBtn").addEventListener("click", function(){ cubiscanFetchRawPath("cubiscanRawPathInput"); });
+  $("#cubiscanFetchRawBtnExp").addEventListener("click", function(){ cubiscanFetchRawPath("cubiscanRawPathInputExp"); });
   (function(){
     var d = new Date();
     var iso = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
