@@ -2219,6 +2219,8 @@ async function cubiscanConnectHID(){
   device.addEventListener("inputreport", function(event){
     var data = new Uint8Array(event.data.buffer);
     for(var i=0;i<data.length;i++){ cubiscan.hidRxBuffer.push(data[i]); }
+    cubiscan.hidReportCount = (cubiscan.hidReportCount || 0) + 1;
+    cubiscanLog("  ↳ HID report #" + cubiscan.hidReportCount + " (" + data.length + " bytes, reportId=" + event.reportId + ")");
   });
 
   // The device appears to send some unsolicited bytes right as the connection is
@@ -2800,6 +2802,8 @@ async function cubiscanTryAutoReconnect(){
         hidMatch.addEventListener("inputreport", function(event){
           var data = new Uint8Array(event.data.buffer);
           for(var i=0;i<data.length;i++){ cubiscan.hidRxBuffer.push(data[i]); }
+          cubiscan.hidReportCount = (cubiscan.hidReportCount || 0) + 1;
+          cubiscanLog("  ↳ HID report #" + cubiscan.hidReportCount + " (" + data.length + " bytes, reportId=" + event.reportId + ")");
         });
         // Same connect-time noise handling as the manual connect path — discard
         // anything that arrives before we've sent a real command.
