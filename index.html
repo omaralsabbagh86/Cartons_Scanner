@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V24 — Offline Manifest</title>
+<title>Carton Scanner V25 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -326,7 +326,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V24</h1>
+  <h1>Carton Scanner V25</h1>
 </div>
 
 <div class="screens">
@@ -342,7 +342,7 @@ body{display:flex;flex-direction:column;}
         <div class="scan-card" id="cameraCollapseBody">
           <div class="viewfinder">
             <video id="video" playsinline muted style="display:none;"></video>
-            <div id="viewPlaceholder" class="placeholder" style="display:flex;">Tap "Start Camera" to scan an EAN-13 barcode, or enter one manually below.</div>
+            <div id="viewPlaceholder" class="placeholder" style="display:flex;">Tap "Start Camera" to scan an EAN-13 or ITF-14 barcode, or enter one manually below.</div>
             <div class="reticle">
               <div class="corner tl"></div><div class="corner tr"></div>
               <div class="corner bl"></div><div class="corner br"></div>
@@ -368,7 +368,7 @@ body{display:flex;flex-direction:column;}
 
         <div class="section-label">Manual Entry</div>
         <div class="manual-row">
-          <input id="manualEan" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="13" placeholder="Enter 13-digit EAN-13">
+          <input id="manualEan" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="14" placeholder="EAN-13 (13-digit) or ITF-14 (14-digit)">
           <button class="btn primary small" id="manualGoBtn">Go</button>
         </div>
       </div>
@@ -378,7 +378,7 @@ body{display:flex;flex-direction:column;}
           <div id="ticketBadge" class="badge new">NEW</div>
           <div class="code-row">
             <div>
-              <div class="code-label">EAN-13</div>
+              <div class="code-label" id="ticketCodeLabel">EAN-13</div>
               <div id="ticketCode" class="code">—</div>
             </div>
           </div>
@@ -387,7 +387,7 @@ body{display:flex;flex-direction:column;}
         </div>
 
         <div class="section-label collapse-header" id="cubiscanCollapseHeader">
-          Cubiscan Dimensioner <span id="cubiscanStatusDot" class="cs-dot"></span>
+          Cubiscan Dimensioner <span id="cubiscanStatusDot" class="cs-dot cs-status-dot"></span>
           <svg class="collapse-chevron" id="cubiscanChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </div>
         <div class="scan-card" style="margin-bottom:16px;">
@@ -396,14 +396,14 @@ body{display:flex;flex-direction:column;}
               <button class="btn primary small" id="cubiscanMeasureBtn" disabled style="flex:2;">Get Measurement</button>
             </div>
             <div id="cubiscanCollapseBody">
-              <div id="cubiscanStatusText" class="scan-status" style="padding:0;background:none;border:none;">Not connected</div>
+              <div id="cubiscanStatusText" class="scan-status cs-status-text" style="padding:0;background:none;border:none;">Not connected</div>
               <div class="scan-controls" style="padding:10px 0 0;">
-                <button class="btn primary small" id="cubiscanConnectBtn">Connect</button>
+                <button class="btn primary small cs-connect-btn" id="cubiscanConnectBtn">Connect</button>
                 <button class="btn ghost small" id="cubiscanLogToggleBtn">Log</button>
               </div>
-              <pre id="cubiscanLog" class="cs-log" style="display:none;"></pre>
+              <pre id="cubiscanLog" class="cs-log cs-log-panel" style="display:none;"></pre>
 
-              <div id="cubiscanToolsWrap" class="hidden">
+              <div id="cubiscanToolsWrap" class="hidden cs-tools-wrap">
                 <div class="cs-divider"></div>
                 <div class="cs-tools-label">Test &amp; Calibrate</div>
                 <div class="scan-controls" style="padding:0 0 10px;flex-wrap:wrap;">
@@ -444,7 +444,7 @@ body{display:flex;flex-direction:column;}
   <section class="screen" data-screen="records">
     <div class="section-label">Stored Records <span class="count" id="recordCount">0</span></div>
     <div class="search-row">
-      <input id="searchInput" type="text" inputmode="numeric" placeholder="Search by EAN-13…">
+      <input id="searchInput" type="text" inputmode="numeric" placeholder="Search by barcode…">
     </div>
     <div id="recordsList"></div>
   </section>
@@ -498,6 +498,43 @@ body{display:flex;flex-direction:column;}
     </div>
     <input type="file" id="cubiscanLogImportInput" accept=".txt" multiple style="display:none;">
     <button class="btn primary" id="cubiscanLogImportBtn" style="width:100%;">Choose Cubiscan Log File(s)</button>
+
+    <div class="section-label" style="margin-top:22px;">
+      Cubiscan Dimensioner <span class="cs-dot cs-status-dot"></span>
+    </div>
+    <div class="scan-card" style="margin-bottom:16px;">
+      <div style="padding:12px;">
+        <div class="scan-status cs-status-text" style="padding:0;background:none;border:none;">Not connected</div>
+        <div class="scan-controls" style="padding:10px 0 0;">
+          <button class="btn primary small cs-connect-btn" id="cubiscanConnectBtnExp">Connect</button>
+          <button class="btn ghost small" id="cubiscanLogToggleBtnExp">Log</button>
+        </div>
+        <pre id="cubiscanLogExp" class="cs-log cs-log-panel" style="display:none;"></pre>
+
+        <div class="cs-tools-wrap hidden">
+          <div class="cs-divider"></div>
+          <div class="cs-tools-label">Test &amp; Calibrate</div>
+          <div class="scan-controls" style="padding:0 0 10px;flex-wrap:wrap;">
+            <button class="btn ghost small" id="cubiscanTestBtnExp">Test Connection</button>
+            <button class="btn ghost small" id="cubiscanExportCalBtnExp">Export Calibration File</button>
+          </div>
+          <div class="manual-row" style="margin-bottom:4px;">
+            <input id="cubiscanLogDateInputExp" type="date">
+            <button class="btn ghost small" id="cubiscanExportLogBtnExp">Export Daily Log</button>
+          </div>
+          <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card. If nothing downloads, the device's internal clock may be unset; check <span style="color:var(--amber);">CONFIGURE → Other → Date/Time</span> on its touchscreen, or try Jan 1.</div>
+          <div class="manual-row" style="margin-bottom:10px;margin-top:10px;">
+            <input id="cubiscanCalWeightInputExp" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
+            <button class="btn primary small" id="cubiscanCalScaleBtnExp">Cal. Scale</button>
+          </div>
+          <div class="scan-controls" style="padding:0;">
+            <button class="btn ghost small" id="cubiscanCalDimBtnExp">Calibrate Dimensions</button>
+          </div>
+          <input type="file" id="cubiscanImportFileInputExp" accept=".txt" style="display:none;">
+          <button class="btn ghost small" id="cubiscanImportCalBtnExp" style="width:100%;margin-top:8px;">Import Calibration File</button>
+        </div>
+      </div>
+    </div>
 
     <div class="section-label" style="margin-top:22px;">Keyboard Shortcuts</div>
     <div class="shortcut-row">
@@ -722,13 +759,17 @@ function fmtDate(iso){
   }catch(e){ return ""; }
 }
 
-function isValidEAN13(code){
-  if(!/^\d{13}$/.test(code)) return false;
+function isValidGTIN(code){
+  // Canonical GS1 mod-10 check-digit algorithm — works for EAN-13, UPC-A (as EAN-13),
+  // and ITF-14/GTIN-14 alike: weights alternate 3,1,3,1… starting from the digit
+  // immediately left of the check digit (i.e. the rightmost data digit).
+  if(!/^\d{13}$|^\d{14}$/.test(code)) return false;
   var digits = code.split("").map(Number);
   var check = digits.pop();
   var sum = 0;
   for(var i=0;i<digits.length;i++){
-    sum += digits[i] * (i % 2 === 0 ? 1 : 3);
+    var posFromRight = digits.length - 1 - i;
+    sum += digits[i] * (posFromRight % 2 === 0 ? 3 : 1);
   }
   var calc = (10 - (sum % 10)) % 10;
   return calc === check;
@@ -768,10 +809,7 @@ function ean13Modules(code13){
 }
 
 /* Render an accurate, correctly-encoded EAN-13 barcode for the exact scanned/entered digits */
-function renderBarcodeSVG(svgEl, code){
-  while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
-  if(!/^\d{13}$/.test(code||"")) return;
-
+function renderEAN13SVG(svgEl, code){
   var quiet = 6;
   var modules = ean13Modules(code);
   var totalW = quiet*2 + modules.length; // 107
@@ -805,6 +843,74 @@ function renderBarcodeSVG(svgEl, code){
   addText(quiet - 3, d[0], "end");
   for(var g=0; g<6; g++){ addText(quiet + 3 + g*7 + 3.5, d[g+1]); }
   for(g=0; g<6; g++){ addText(quiet + 50 + g*7 + 3.5, d[g+7]); }
+}
+
+/* ============ Real ITF-14 (Interleaved 2-of-5) symbology ============
+   Standard, widely-published I 2-of-5 digit patterns: each digit is 5 bars, exactly
+   2 of which are "wide" — hence the name. Digits are consumed in pairs; the first of
+   each pair supplies the bar widths, the second supplies the interleaved space widths.
+   ITF-14 additionally wraps the whole symbol in a bearer bar (a black frame) per GS1
+   spec — the visual signature that distinguishes it from generic ITF at a glance. */
+var ITF_PATTERNS = ["00110","10001","01001","11000","00101","10100","01100","00011","10010","01010"];
+
+function itf14Segments(code14){
+  var d = code14.split("").map(Number);
+  var segs = [{bar:true,w:1},{bar:false,w:1},{bar:true,w:1},{bar:false,w:1}]; // start
+  for(var i=0;i<d.length;i+=2){
+    var barPattern = ITF_PATTERNS[d[i]];
+    var spacePattern = ITF_PATTERNS[d[i+1]];
+    for(var k=0;k<5;k++){
+      segs.push({bar:true, w: barPattern.charAt(k) === "1" ? 3 : 1});
+      segs.push({bar:false, w: spacePattern.charAt(k) === "1" ? 3 : 1});
+    }
+  }
+  segs.push({bar:true,w:3},{bar:false,w:1},{bar:true,w:1}); // stop
+  return segs;
+}
+
+function renderITF14SVG(svgEl, code){
+  var segs = itf14Segments(code);
+  var barsWidth = segs.reduce(function(sum,s){ return sum + s.w; }, 0);
+  var quiet = 8, bearer = 2, side = 2, barH = 26;
+  var totalW = side*2 + quiet*2 + barsWidth;
+  var vbH = bearer*2 + barH + 9;
+  svgEl.setAttribute("viewBox", "0 0 " + totalW + " " + vbH);
+  svgEl.setAttribute("preserveAspectRatio", "none");
+
+  function rect(x,y,w,h){
+    var r = document.createElementNS("http://www.w3.org/2000/svg","rect");
+    r.setAttribute("x", x); r.setAttribute("y", y); r.setAttribute("width", w); r.setAttribute("height", h);
+    svgEl.appendChild(r);
+  }
+  rect(0, 0, totalW, bearer);                       // top bearer bar
+  rect(0, bearer + barH, totalW, bearer);            // bottom bearer bar
+  rect(0, 0, side, bearer*2 + barH);                 // left bearer bar
+  rect(totalW - side, 0, side, bearer*2 + barH);     // right bearer bar
+
+  var x = side + quiet;
+  segs.forEach(function(s){
+    if(s.bar) rect(x, bearer, s.w, barH);
+    x += s.w;
+  });
+
+  var d = code.split("");
+  for(var i=0;i<14;i++){
+    var t = document.createElementNS("http://www.w3.org/2000/svg","text");
+    t.setAttribute("x", (side + quiet + (barsWidth/14) * (i + 0.5)).toString());
+    t.setAttribute("y", String(vbH - 1));
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("font-size", "6");
+    t.setAttribute("font-family", "monospace");
+    t.textContent = d[i];
+    svgEl.appendChild(t);
+  }
+}
+
+/* Picks the correct real symbology for the code's length and renders it. */
+function renderBarcodeSVG(svgEl, code){
+  while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+  if(/^\d{14}$/.test(code||"")){ renderITF14SVG(svgEl, code); return; }
+  if(/^\d{13}$/.test(code||"")){ renderEAN13SVG(svgEl, code); return; }
 }
 
 /* ============ State ============ */
@@ -868,15 +974,13 @@ function openCameraStream(deviceId){
   });
 }
 
-/* Normalizes a decoded value to our 13-digit EAN-13 storage format. Many real-world
-   products (especially US/Gulf-market goods) are physically printed as UPC-A barcodes —
-   a different bar symbology from EAN-13, even though the number is EAN-13-compatible
-   with a leading zero. Detectors report these as format "UPC-A", not "EAN-13", so a
-   scanner limited to EAN-13 only will never see them even though the barcode is perfectly
-   valid and scannable. Accepting UPC-A too, and folding it into the same 13-digit scheme,
-   covers this very common case. */
+/* Normalizes a decoded value to our storage format. Accepts EAN-13 (13 digits) and
+   ITF-14 (14 digits) as-is; a 12-digit UPC-A gets a leading zero prepended, since
+   it's EAN-13-compatible under the hood even though it's a different bar symbology
+   (detectors report it as format "UPC-A", not "EAN-13"). */
 function normalizeScannedValue(text){
   text = String(text || "").trim();
+  if(/^\d{14}$/.test(text)) return text;
   if(/^\d{13}$/.test(text)) return text;
   if(/^\d{12}$/.test(text)) return "0" + text;
   return null;
@@ -1054,7 +1158,7 @@ function beginDetectionOnStream(stream){
     // reliable at odd angles/distances than pure-JS image decoding.
     var detector;
     try{
-      detector = new window.BarcodeDetector({formats: ["ean_13", "upc_a"]});
+      detector = new window.BarcodeDetector({formats: ["ean_13", "upc_a", "itf"]});
     }catch(e){
       hasNativeDetector = false;
     }
@@ -1091,7 +1195,7 @@ function beginDetectionOnStream(stream){
   }
   try{
     var hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.UPC_A]);
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.ITF]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
     var reader = new ZXing.BrowserMultiFormatReader(hints);
     state.codeReader = reader;
@@ -1218,8 +1322,8 @@ function loadOrCreate(code){
     code = code.padStart(13, "0");
     $("#manualEan").value = code;
   }
-  if(!/^\d{13}$/.test(code)){
-    toast("Enter a valid EAN-13 code (up to 13 digits)", true);
+  if(!/^\d{13}$/.test(code) && !/^\d{14}$/.test(code)){
+    toast("Enter a valid EAN-13 (13 digits) or ITF-14 (14 digits) code", true);
     return;
   }
   dbGet(code).then(function(rec){
@@ -1229,7 +1333,7 @@ function loadOrCreate(code){
     showTicket(code, rec);
     fillForm(rec);
     $("#entryZone").classList.remove("hidden");
-    if(!isValidEAN13(code)){
+    if(!isValidGTIN(code)){
       toast("Note: checksum looks non-standard — saved anyway", false);
     }
   });
@@ -1237,6 +1341,7 @@ function loadOrCreate(code){
 
 function showTicket(code, rec){
   $("#ticketCode").textContent = code;
+  $("#ticketCodeLabel").textContent = code.length === 14 ? "ITF-14" : "EAN-13";
   var badge = $("#ticketBadge");
   if(!rec){
     badge.textContent = "NEW";
@@ -1464,7 +1569,7 @@ function renderRecordsList(list){
   if(overCap){
     var notice = document.createElement("div");
     notice.className = "records-cap-notice";
-    notice.textContent = "Showing the " + RECORDS_RENDER_CAP + " most recently updated of " + list.length + " records — search by EAN-13 above to find a specific one.";
+    notice.textContent = "Showing the " + RECORDS_RENDER_CAP + " most recently updated of " + list.length + " records — search above to find a specific one.";
     container.appendChild(notice);
   }
   toRender.forEach(function(rec){
@@ -2018,17 +2123,22 @@ var cubiscan = {
 };
 
 function cubiscanLog(msg){
-  var el = $("#cubiscanLog");
-  if(!el) return;
   var line = "[" + new Date().toLocaleTimeString() + "] " + msg;
-  el.textContent = (el.textContent ? el.textContent + "\n" : "") + line;
-  el.scrollTop = el.scrollHeight;
+  $all(".cs-log-panel").forEach(function(el){
+    el.textContent = (el.textContent ? el.textContent + "\n" : "") + line;
+    el.scrollTop = el.scrollHeight;
+  });
 }
 function cubiscanSetStatus(text, mode){
-  var textEl = $("#cubiscanStatusText");
-  var dotEl = $("#cubiscanStatusDot");
-  if(textEl) textEl.textContent = text;
-  if(dotEl) dotEl.className = "cs-dot" + (mode === "on" ? " on" : mode === "err" ? " err" : "");
+  $all(".cs-status-text").forEach(function(el){ el.textContent = text; });
+  $all(".cs-status-dot").forEach(function(el){
+    el.classList.remove("on", "err");
+    if(mode === "on") el.classList.add("on");
+    else if(mode === "err") el.classList.add("err");
+  });
+}
+function cubiscanUpdateConnectButtons(label){
+  $all(".cs-connect-btn").forEach(function(b){ b.textContent = label; });
 }
 function cubiscanBytesToDebugString(bytes){
   return Array.from(bytes).map(function(b){
@@ -2125,7 +2235,7 @@ async function cubiscanConnectHID(){
   cubiscanLog("Connected via WebHID — " + (device.productName || "CubiScan 100-T"));
   cubiscanSetStatus("Connected (WebHID)", "on");
   $("#cubiscanMeasureBtn").disabled = false;
-  $("#cubiscanConnectBtn").textContent = "Reconnect";
+  cubiscanUpdateConnectButtons("Reconnect");
   cubiscanRevealCalibrationTools();
 }
 
@@ -2141,7 +2251,7 @@ async function cubiscanConnectSerial(){
     cubiscanLog("Connected via Web Serial");
     cubiscanSetStatus("Connected (Web Serial)", "on");
     $("#cubiscanMeasureBtn").disabled = false;
-    $("#cubiscanConnectBtn").textContent = "Reconnect";
+    cubiscanUpdateConnectButtons("Reconnect");
     cubiscanRevealCalibrationTools();
   }catch(e){
     cubiscanLog("Serial connect cancelled/failed: " + e.message);
@@ -2212,7 +2322,7 @@ async function cubiscanOpenAndConfigureUSB(device){
   cubiscanLog("Connected via WebUSB — data iface " + dataIface + ", in ep " + epIn + ", out ep " + epOut);
   cubiscanSetStatus("Connected (WebUSB)", "on");
   $("#cubiscanMeasureBtn").disabled = false;
-  $("#cubiscanConnectBtn").textContent = "Reconnect";
+  cubiscanUpdateConnectButtons("Reconnect");
   cubiscanRevealCalibrationTools();
 
   device.addEventListener("close", function(){
@@ -2223,8 +2333,7 @@ async function cubiscanOpenAndConfigureUSB(device){
 }
 
 function cubiscanRevealCalibrationTools(){
-  var el = $("#cubiscanToolsWrap");
-  if(el) el.classList.remove("hidden");
+  $all(".cs-tools-wrap").forEach(function(el){ el.classList.remove("hidden"); });
   autoCollapseCubiscanIfNeeded();
 }
 
@@ -2252,6 +2361,15 @@ async function cubiscanWriteBytes(bytes){
       var outReports = cubiscan.hidDevice.collections && cubiscan.hidDevice.collections[0] && cubiscan.hidDevice.collections[0].outputReports;
       if(outReports && outReports.length){ reportId = outReports[0].reportId || 0; }
     }catch(e){}
+    // Flush the receive buffer right before sending — anything already sitting there
+    // cannot be a response to what we're about to send, only stale/unsolicited data
+    // from earlier. A fixed post-connect discard window wasn't enough on its own:
+    // confirmed against real hardware where over 9 seconds passed between connecting
+    // and the first command, well past that window, yet contamination still occurred.
+    if(cubiscan.hidRxBuffer && cubiscan.hidRxBuffer.length){
+      cubiscanLog("Discarded " + cubiscan.hidRxBuffer.length + " stale byte(s) sitting in the buffer before sending");
+      cubiscan.hidRxBuffer = [];
+    }
     await cubiscan.hidDevice.sendReport(reportId, bytes);
   }else if(cubiscan.transport === "serial"){
     var writer = cubiscan.serialPort.writable.getWriter();
@@ -2555,9 +2673,9 @@ async function cubiscanCalibStep(){
   }
 }
 
-function cubiscanStartScaleCalibration(){
+function cubiscanStartScaleCalibration(weightInputId){
   if(!cubiscan.connected){ toast("Connect to the Cubiscan first", true); return; }
-  var weightInput = $("#cubiscanCalWeightInput");
+  var weightInput = $("#" + (weightInputId || "cubiscanCalWeightInput"));
   var w = weightInput ? parseFloat(weightInput.value) : NaN;
   if(!w || w < 25 || w > 201){
     alert("Enter a test weight between 25 and 201 lb before calibrating the scale.");
@@ -2608,9 +2726,9 @@ async function cubiscanExportCalibrationFile(){
    continuously with no configuration needed, independent of whatever this app has
    or hasn't captured. Same Get/Stream file-transfer mechanism as the calibration
    file export above, just a different filename. */
-async function cubiscanExportDailyLog(){
+async function cubiscanExportDailyLog(dateInputId){
   if(!cubiscan.connected){ toast("Connect to the Cubiscan first", true); return; }
-  var dateVal = $("#cubiscanLogDateInput").value; // "YYYY-MM-DD"
+  var dateVal = $("#" + (dateInputId || "cubiscanLogDateInput")).value; // "YYYY-MM-DD"
   if(!dateVal){ toast("Pick a date first", true); return; }
   var parts = dateVal.split("-");
   var mm = parts[1], dd = parts[2];
@@ -2689,7 +2807,7 @@ async function cubiscanTryAutoReconnect(){
         cubiscan.hidRxBuffer = [];
         cubiscanSetStatus("Connected (WebHID)", "on");
         $("#cubiscanMeasureBtn").disabled = false;
-        $("#cubiscanConnectBtn").textContent = "Reconnect";
+        cubiscanUpdateConnectButtons("Reconnect");
         cubiscanRevealCalibrationTools();
         return;
       }
@@ -2709,7 +2827,7 @@ async function cubiscanTryAutoReconnect(){
         cubiscan.connected = true;
         cubiscanSetStatus("Connected (Web Serial)", "on");
         $("#cubiscanMeasureBtn").disabled = false;
-        $("#cubiscanConnectBtn").textContent = "Reconnect";
+        cubiscanUpdateConnectButtons("Reconnect");
         cubiscanRevealCalibrationTools();
         return;
       }
@@ -3032,13 +3150,14 @@ function init(){
   });
   $("#cubiscanTestBtn").addEventListener("click", cubiscanTestConnection);
   $("#cubiscanExportCalBtn").addEventListener("click", cubiscanExportCalibrationFile);
-  $("#cubiscanExportLogBtn").addEventListener("click", cubiscanExportDailyLog);
+  $("#cubiscanExportLogBtn").addEventListener("click", function(){ cubiscanExportDailyLog("cubiscanLogDateInput"); });
   (function(){
     var d = new Date();
     var iso = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
     $("#cubiscanLogDateInput").value = iso;
+    $("#cubiscanLogDateInputExp").value = iso;
   })();
-  $("#cubiscanCalScaleBtn").addEventListener("click", cubiscanStartScaleCalibration);
+  $("#cubiscanCalScaleBtn").addEventListener("click", function(){ cubiscanStartScaleCalibration("cubiscanCalWeightInput"); });
   $("#cubiscanCalDimBtn").addEventListener("click", cubiscanStartDimCalibration);
   $("#cubiscanImportCalBtn").addEventListener("click", function(){ $("#cubiscanImportFileInput").click(); });
   $("#cubiscanImportFileInput").addEventListener("change", function(){
@@ -3046,6 +3165,26 @@ function init(){
     if(file) cubiscanImportCalibrationFile(file);
     this.value = "";
   });
+
+  // Export/Import screen's Cubiscan panel — same underlying device/state, second
+  // access point so device-management tasks don't require an active barcode capture.
+  $("#cubiscanConnectBtnExp").addEventListener("click", cubiscanConnect);
+  $("#cubiscanLogToggleBtnExp").addEventListener("click", function(){
+    var el = $("#cubiscanLogExp");
+    el.style.display = (el.style.display === "none") ? "block" : "none";
+  });
+  $("#cubiscanTestBtnExp").addEventListener("click", cubiscanTestConnection);
+  $("#cubiscanExportCalBtnExp").addEventListener("click", cubiscanExportCalibrationFile);
+  $("#cubiscanExportLogBtnExp").addEventListener("click", function(){ cubiscanExportDailyLog("cubiscanLogDateInputExp"); });
+  $("#cubiscanCalScaleBtnExp").addEventListener("click", function(){ cubiscanStartScaleCalibration("cubiscanCalWeightInputExp"); });
+  $("#cubiscanCalDimBtnExp").addEventListener("click", cubiscanStartDimCalibration);
+  $("#cubiscanImportCalBtnExp").addEventListener("click", function(){ $("#cubiscanImportFileInputExp").click(); });
+  $("#cubiscanImportFileInputExp").addEventListener("change", function(){
+    var file = this.files && this.files[0];
+    if(file) cubiscanImportCalibrationFile(file);
+    this.value = "";
+  });
+
   $("#calibNextBtn").addEventListener("click", cubiscanCalibNext);
   $("#calibCancelBtn").addEventListener("click", calibHide);
   cubiscanTryAutoReconnect();
