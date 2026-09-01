@@ -2395,9 +2395,13 @@ async function cubiscanReadUntil(timeoutMs, isDoneFn){
   if(cubiscan.transport === "hid"){
     cubiscan.hidRxBuffer = cubiscan.hidRxBuffer || [];
     while(Date.now() - start < timeoutMs){
-      if(isDoneFn(cubiscan.hidRxBuffer)) break;
+      var done = false;
+      try{ done = isDoneFn(cubiscan.hidRxBuffer); }
+      catch(e){ cubiscanLog("(completion-check threw: " + e.message + ")"); }
+      if(done) break;
       await new Promise(function(r){ setTimeout(r, 50); });
     }
+    cubiscanLog("(read loop ended after " + (Date.now() - start) + "ms, requested timeout was " + timeoutMs + "ms)");
     var hidResult = cubiscan.hidRxBuffer.slice();
     cubiscan.hidRxBuffer = [];
     return hidResult;
