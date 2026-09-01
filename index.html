@@ -2162,19 +2162,52 @@ function cubiscanTryParseFileHeader(bytes){
   if(!m) return null;
   return {filesize: parseInt(m[1], 10), headerLength: m.index + m[0].length};
 }
+/* Fallback for file types that don't use the size-prefixed envelope at all — confirmed
+   against a real captured daily-log response, which streams its content directly rather
+   than wrapping it in "gSA,<size>," like the parameter file does. Takes everything from
+   the first STX to the final <ETX><CR><LF>. Explicitly excludes a genuine "file not
+   found" NACK (a bare <STX>gN<ETX><CR><LF>), so a missing file still correctly reports
+   as missing instead of "succeeding" with 3 bytes of garbage. */
+function cubiscanTryExtractRawContent(bytes){
+  var startIdx = bytes.indexOf(STX);
+  if(startIdx === -1) return null;
+  if(bytes[startIdx+1] === 103 /* 'g' */ && bytes[startIdx+2] === 78 /* 'N' */) return null;
+  for(var i = bytes.length - 3; i > startIdx; i--){
+    if(bytes[i] === ETX && bytes[i+1] === CR && bytes[i+2] === LF){
+      return {bytes: bytes.slice(startIdx, i)};
+    }
+  }
+  return null;
+}
+function cubiscanIsNack(bytes){
+  var idx = bytes.indexOf(STX);
+  if(idx === -1) return false;
+  return bytes[idx+1] === 103 /* 'g' */ && bytes[idx+2] === 78 /* 'N' */;
+}
 async function cubiscanReadFileResponse(timeoutMs){
   var headerInfo = null;
   var bytes = await cubiscanReadUntil(timeoutMs || 15000, function(b){
-    if(!headerInfo){ headerInfo = cubiscanTryParseFileHeader(b); if(!headerInfo) return false; }
-    return b.length >= headerInfo.headerLength + headerInfo.filesize + 3;
+    if(!headerInfo){ headerInfo = cubiscanTryParseFileHeader(b); }
+    if(headerInfo){
+      return b.length >= headerInfo.headerLength + headerInfo.filesize + 3;
+    }
+    if(cubiscanIsNack(b)) return true; // finish fast on a clean "file not found" too
+    // No sized envelope in this response type — finish as soon as a plausible
+    // raw-content terminator shows up, instead of always waiting the full timeout.
+    return cubiscanTryExtractRawContent(b) !== null;
   });
-  if(!headerInfo){
-    cubiscanLog("RX (file): header not found in " + bytes.length + " bytes — " + cubiscanBytesToDebugString(bytes.slice(0,80)));
-    return null;
+  if(headerInfo){
+    var fileBytes = bytes.slice(headerInfo.headerLength, headerInfo.headerLength + headerInfo.filesize);
+    cubiscanLog("RX (file): " + fileBytes.length + " of " + headerInfo.filesize + " expected bytes (sized envelope)");
+    return {bytes: new Uint8Array(fileBytes)};
   }
-  var fileBytes = bytes.slice(headerInfo.headerLength, headerInfo.headerLength + headerInfo.filesize);
-  cubiscanLog("RX (file): " + fileBytes.length + " of " + headerInfo.filesize + " expected bytes");
-  return {bytes: new Uint8Array(fileBytes)};
+  var raw = cubiscanTryExtractRawContent(bytes);
+  if(raw){
+    cubiscanLog("RX (file): " + raw.bytes.length + " bytes recovered (no size envelope in this response — used raw content instead)");
+    return {bytes: new Uint8Array(raw.bytes)};
+  }
+  cubiscanLog("RX (file): header not found in " + bytes.length + " bytes — " + cubiscanBytesToDebugString(bytes.slice(0,80)));
+  return null;
 }
 
 /* ---------- Measurement (unchanged parsing logic) ---------- */
