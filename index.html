@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V23 — Offline Manifest</title>
+<title>Carton Scanner V24 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -326,7 +326,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V23</h1>
+  <h1>Carton Scanner V24</h1>
 </div>
 
 <div class="screens">
@@ -2153,9 +2153,14 @@ async function cubiscanReadTextResponse(timeoutMs){
 function cubiscanTryParseFileHeader(bytes){
   if(bytes.length < 6) return null;
   var str = bytes.map(function(b){ return String.fromCharCode(b); }).join("");
-  var m = str.match(/^\x02g[AN]([^,\x03]*),(\d{10}),/);
+  // Real hardware (confirmed against an actual captured response) doesn't match the
+  // manual's implied format: no filename is echoed back, and the ack flag is preceded
+  // by the echoed transfer-method letter (e.g. "gSA" for a Stream-method Get, not a
+  // bare "gA"). Searching anywhere in the buffer — rather than anchoring to position 0 —
+  // also makes this resilient to any stray leading bytes.
+  var m = str.match(/\x02g.A,(\d{10}),/);
   if(!m) return null;
-  return {filename: m[1], filesize: parseInt(m[2], 10), headerLength: m[0].length};
+  return {filesize: parseInt(m[1], 10), headerLength: m.index + m[0].length};
 }
 async function cubiscanReadFileResponse(timeoutMs){
   var headerInfo = null;
@@ -2168,8 +2173,8 @@ async function cubiscanReadFileResponse(timeoutMs){
     return null;
   }
   var fileBytes = bytes.slice(headerInfo.headerLength, headerInfo.headerLength + headerInfo.filesize);
-  cubiscanLog("RX (file): " + headerInfo.filename + " — " + fileBytes.length + " of " + headerInfo.filesize + " expected bytes");
-  return {filename: headerInfo.filename, bytes: new Uint8Array(fileBytes)};
+  cubiscanLog("RX (file): " + fileBytes.length + " of " + headerInfo.filesize + " expected bytes");
+  return {bytes: new Uint8Array(fileBytes)};
 }
 
 /* ---------- Measurement (unchanged parsing logic) ---------- */
@@ -2380,7 +2385,7 @@ async function cubiscanExportCalibrationFile(){
       return;
     }
     var blob = new Blob([fileResult.bytes], {type: "text/plain"});
-    downloadBlob(blob, fileResult.filename || "Cs1x0par.txt");
+    downloadBlob(blob, "Cs1x0par.txt");
     toast("Calibration file exported");
     cubiscanSetStatus("Connected", "on");
   }catch(e){
