@@ -2500,6 +2500,15 @@ async function cubiscanReadFileResponse(timeoutMs){
     cubiscanLog("RX (file): " + fileBytes.length + " of " + headerInfo.filesize + " expected bytes (sized envelope)");
     return {bytes: new Uint8Array(fileBytes)};
   }
+  if(cubiscanIsNack(bytes)){
+    // The read loop already exits fast specifically to catch this case — but this
+    // function never re-checked for it afterward, so a perfectly normal, quick "no
+    // such file" reply was falling through to the generic parse-failure message below
+    // and looking like a bug when it was actually the device correctly and promptly
+    // confirming there's nothing to send.
+    cubiscanLog("RX: device confirmed no file exists for this request (clean, fast NACK)");
+    return null;
+  }
   var raw = cubiscanTryExtractRawContent(bytes);
   if(raw){
     cubiscanLog("RX (file): " + raw.bytes.length + " bytes recovered (no size envelope in this response — used raw content instead)");
