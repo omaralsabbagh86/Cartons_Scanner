@@ -1904,7 +1904,24 @@ function cubiscanBytesToDebugString(bytes){
    reclaim the HID interface. Web Serial is tried last; it will never
    match this specific HID descriptor, but is harmless to keep for any
    other CubiScan unit that might expose a true CDC serial port instead. */
+/* Releases any existing connection handle before a fresh connect attempt. Without
+   this, clicking Reconnect repeatedly (or auto-reconnect racing a manual click) can
+   leave a stale HID/USB handle still holding the device, which then makes any NEW
+   connection attempt fail with "Access denied" — the OS correctly refusing to open
+   a device that's already claimed by an earlier, uncleaned-up session. */
+async function cubiscanDisconnect(){
+  try{ if(cubiscan.transport === "hid" && cubiscan.hidDevice){ await cubiscan.hidDevice.close(); } }catch(e){}
+  try{ if(cubiscan.transport === "usb" && cubiscan.device){ await cubiscan.device.close(); } }catch(e){}
+  try{ if(cubiscan.transport === "serial" && cubiscan.serialPort){ await cubiscan.serialPort.close(); } }catch(e){}
+  cubiscan.hidDevice = null;
+  cubiscan.device = null;
+  cubiscan.serialPort = null;
+  cubiscan.transport = null;
+  cubiscan.connected = false;
+}
+
 async function cubiscanConnect(){
+  await cubiscanDisconnect(); // always start from a clean slate, never stack connections
   var hasHID = navigator.hid && typeof navigator.hid.requestDevice === "function";
   var hasSerial = navigator.serial && typeof navigator.serial.requestPort === "function";
   var hasUSB = navigator.usb && typeof navigator.usb.requestDevice === "function";
