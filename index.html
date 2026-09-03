@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V27 — Offline Manifest</title>
+<title>Carton Scanner V31 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -127,6 +127,13 @@ body{display:flex;flex-direction:column;}
   flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-hi);
   font-family:var(--mono);font-size:16px;letter-spacing:.06em;padding:12px 12px;min-width:0;
 }
+.manual-row select{
+  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-hi);
+  font-family:var(--mono);font-size:14px;padding:12px 12px;min-width:0;
+  appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--text-mid) 50%),linear-gradient(135deg,var(--text-mid) 50%,transparent 50%);
+  background-position:calc(100% - 16px) center,calc(100% - 11px) center;background-size:5px 5px,5px 5px;background-repeat:no-repeat;
+}
+.manual-row select:focus{outline:none;border-color:var(--amber);}
 .manual-row input:focus{outline:none;border-color:var(--amber);}
 .manual-row input::placeholder,.field input::placeholder,.search-row input::placeholder{color:var(--text-low);opacity:1;}
 
@@ -135,6 +142,11 @@ body{display:flex;flex-direction:column;}
   background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;
   position:relative;
 }
+.cs-checkbox-row{
+  display:flex;align-items:center;gap:8px;margin:2px 0 10px;font-size:12px;color:var(--text-low);
+  cursor:pointer;user-select:none;
+}
+.cs-checkbox-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--amber);flex-shrink:0;cursor:pointer;}
 .ticket .badge{
   position:absolute;top:-10px;right:14px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
   padding:4px 9px;border-radius:4px;transform:rotate(3deg);text-transform:uppercase;font-weight:700;
@@ -326,7 +338,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V27</h1>
+  <h1>Carton Scanner V31</h1>
 </div>
 
 <div class="screens">
@@ -376,11 +388,24 @@ body{display:flex;flex-direction:column;}
       <div id="entryZone" class="entry-col hidden">
         <div class="ticket">
           <div id="ticketBadge" class="badge new">NEW</div>
+          <label class="cs-checkbox-row" for="masterCartonNoBarcode">
+            <input type="checkbox" id="masterCartonNoBarcode">
+            <span>Master Carton with no Barcode (for Packaging only)</span>
+          </label>
           <div class="code-row">
             <div>
               <div class="code-label" id="ticketCodeLabel">EAN-13</div>
               <div id="ticketCode" class="code">—</div>
             </div>
+          </div>
+          <div class="manual-row" style="margin:8px 0 6px;">
+            <select id="barcodeFormatSelect" style="flex:1;">
+              <option value="auto">Auto (match detected type)</option>
+              <option value="ean13">EAN-13</option>
+              <option value="itf14">EAN-14 / ITF-14</option>
+              <option value="code128">Code 128</option>
+              <option value="qr">QR Code</option>
+            </select>
           </div>
           <svg id="ticketBarcode" class="barcode-svg"></svg>
           <div id="ticketMeta" class="scan-status" style="padding:8px 0 0;background:none;border:none;font-size:10px;"></div>
@@ -414,7 +439,7 @@ body{display:flex;flex-direction:column;}
                   <input id="cubiscanLogDateInput" type="date">
                   <button class="btn ghost small" id="cubiscanExportLogBtn">Export Daily Log</button>
                 </div>
-                <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card — an independent backup that exists even if this app never captured a reading. If nothing downloads, the device's internal clock may be unset; check <span style="color:var(--amber);">CONFIGURE → Other → Date/Time</span> on its touchscreen, or try Jan 1.</div>
+                <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card. <span style="color:var(--amber);">Note: on this unit, the SD card's "data" folder uses sequential batch files (e.g. 01\067.txt), not per-day files — this date-based lookup will very likely say "no file" regardless of date. Use "Fetch File by Exact Path" below instead, with your confirmed-working file.</span></div>
 
                 <div class="cs-divider" style="margin:12px 0;"></div>
                 <div class="cs-tools-label">Fetch File by Exact Path</div>
@@ -422,7 +447,7 @@ body{display:flex;flex-direction:column;}
                   <input id="cubiscanRawPathInput" type="text" placeholder="data\01\067.txt" value="data\01\067.txt">
                   <button class="btn ghost small" id="cubiscanFetchRawBtn">Fetch</button>
                 </div>
-                <div class="cs-hint">Diagnostic tool — requests a file by its literal path on the SD card, bypassing any date guessing. Use this with a folder/filename you already know is real (e.g. from browsing the card directly on a PC) to confirm exactly how this device names its own files.</div>
+                <div class="cs-hint">Confirmed working on this unit — the log is one continuously-growing file, not split by day. Re-fetch this same path any time to get the latest data, then use "Import from Cubiscan Log" below to safely bring in new/updated measurements (existing barcodes just get their dimensions refreshed, nothing else changes).</div>
 
                 <div class="manual-row" style="margin-bottom:10px;margin-top:10px;">
                   <input id="cubiscanCalWeightInput" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
@@ -495,7 +520,7 @@ body{display:flex;flex-direction:column;}
       </div>
     </div>
     <div class="manual-row">
-      <input id="importUrlInput" type="url" inputmode="url" placeholder="https://…" value="https://github.com/omaralsabbagh86/Carton_Scanner/blob/main/carton_manifest_Full.xlsx">
+      <input id="importUrlInput" type="url" inputmode="url" placeholder="https://…">
       <button class="btn primary small" id="importUrlBtn">Import</button>
     </div>
 
@@ -531,7 +556,7 @@ body{display:flex;flex-direction:column;}
             <input id="cubiscanLogDateInputExp" type="date">
             <button class="btn ghost small" id="cubiscanExportLogBtnExp">Export Daily Log</button>
           </div>
-          <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card. If nothing downloads, the device's internal clock may be unset; check <span style="color:var(--amber);">CONFIGURE → Other → Date/Time</span> on its touchscreen, or try Jan 1.</div>
+          <div class="cs-hint">Pulls that day's automatic measurement log straight from the Cubiscan's own internal SD card. <span style="color:var(--amber);">Note: on this unit, the SD card's "data" folder uses sequential batch files (e.g. 01\067.txt), not per-day files — this date-based lookup will very likely say "no file" regardless of date. Use "Fetch File by Exact Path" below instead, with your confirmed-working file.</span></div>
 
           <div class="cs-divider" style="margin:12px 0;"></div>
           <div class="cs-tools-label">Fetch File by Exact Path</div>
@@ -539,7 +564,7 @@ body{display:flex;flex-direction:column;}
             <input id="cubiscanRawPathInputExp" type="text" placeholder="data\01\067.txt" value="data\01\067.txt">
             <button class="btn ghost small" id="cubiscanFetchRawBtnExp">Fetch</button>
           </div>
-          <div class="cs-hint">Diagnostic tool — requests a file by its literal path on the SD card, bypassing any date guessing. Use this with a folder/filename you already know is real (e.g. from browsing the card directly on a PC) to confirm exactly how this device names its own files.</div>
+          <div class="cs-hint">Confirmed working on this unit — the log is one continuously-growing file, not split by day. Re-fetch this same path any time to get the latest data, then use "Import from Cubiscan Log" below to safely bring in new/updated measurements (existing barcodes just get their dimensions refreshed, nothing else changes).</div>
 
           <div class="manual-row" style="margin-bottom:10px;margin-top:10px;">
             <input id="cubiscanCalWeightInputExp" type="number" inputmode="decimal" placeholder="Test weight (25–201 lb)" step="0.01" min="25" max="201">
@@ -689,7 +714,7 @@ var FIELDS = [
   {key:"cartonWeight", label:"Carton Weight (kg)", type:"number"},
   {key:"cartonsPerPallet", label:"Master Cartons / Pallet", type:"integer"},
   {key:"palletType", label:"Pallet Type", type:"select", options:["Small","Large"], defaultValue:"Large"},
-  {key:"palletFlow", label:"Pallet Of", type:"select", options:["Inbound","Outbound","Both"], defaultValue:"Inbound"}
+  {key:"palletFlow", label:"Pallet Of", type:"select", options:["Inbound","Outbound","Both","Whole Sale"], defaultValue:"Inbound"}
 ];
 
 /* ============ DB (IndexedDB) ============ */
@@ -924,11 +949,138 @@ function renderITF14SVG(svgEl, code){
   }
 }
 
-/* Picks the correct real symbology for the code's length and renders it. */
+/* ============ Code 128 (Subset C — numeric pairs) ============
+   Standard, widely-published ISO/IEC 15417 pattern table. Subset C is used exclusively
+   since every barcode value in this app is a numeric digit string; C encodes two digits
+   per symbol, which is both simpler to implement correctly and more compact to print
+   than mixing in Subset A/B for alphanumeric data we never actually have. */
+var CODE128_PATTERNS = [
+"212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+"221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+"221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+"212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+"231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+"231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+"314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+"112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+"111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+"214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+"114131","311141","411131",
+"211412","211214","211232","2331112" // 103=Start A, 104=Start B, 105=Start C, 106=Stop
+];
+
+function code128CSegments(digitsRaw){
+  var digits = String(digitsRaw||"").replace(/\D/g,"");
+  if(digits.length === 0) digits = "0";
+  if(digits.length % 2 !== 0) digits = "0" + digits; // Subset C needs an even digit count
+  var values = [105]; // Start C
+  for(var i=0;i<digits.length;i+=2){ values.push(parseInt(digits.substr(i,2), 10)); }
+  var checksum = values[0];
+  for(var j=1;j<values.length;j++){ checksum += values[j] * j; }
+  checksum = checksum % 103;
+  values.push(checksum);
+  values.push(106); // Stop
+  var segs = [];
+  values.forEach(function(v){
+    var pattern = CODE128_PATTERNS[v];
+    for(var k=0;k<pattern.length;k++){
+      segs.push({bar: (k % 2 === 0), w: parseInt(pattern[k], 10)});
+    }
+  });
+  return segs;
+}
+
+function renderCode128SVG(svgEl, code){
+  var segs = code128CSegments(code);
+  var barsWidth = segs.reduce(function(s,x){ return s + x.w; }, 0);
+  var quiet = 8, barH = 30, vbH = barH + 9;
+  var totalW = quiet*2 + barsWidth;
+  svgEl.setAttribute("viewBox", "0 0 " + totalW + " " + vbH);
+  svgEl.setAttribute("preserveAspectRatio", "none");
+  function rect(x,y,w,h){
+    var r = document.createElementNS("http://www.w3.org/2000/svg","rect");
+    r.setAttribute("x", x); r.setAttribute("y", y); r.setAttribute("width", w); r.setAttribute("height", h);
+    svgEl.appendChild(r);
+  }
+  var x = quiet;
+  segs.forEach(function(s){ if(s.bar) rect(x, 0, s.w, barH); x += s.w; });
+  var t = document.createElementNS("http://www.w3.org/2000/svg","text");
+  t.setAttribute("x", String(totalW/2));
+  t.setAttribute("y", String(vbH - 1));
+  t.setAttribute("text-anchor", "middle");
+  t.setAttribute("font-size", "6.5");
+  t.setAttribute("font-family", "monospace");
+  t.textContent = code;
+  svgEl.appendChild(t);
+}
+
+/* ============ QR Code — via ZXing's own encoder (not hand-rolled) ============
+   QR's error-correction/matrix-placement rules are complex enough that reusing the
+   already-bundled, battle-tested ZXing encoder is far more reliable than a fresh
+   implementation. Requesting a 1×1 target size returns the natural, unscaled module
+   grid (quiet zone included) rather than a pre-scaled pixel bitmap, which is what we
+   want — the SVG viewBox handles scaling for display. */
+function renderQRSVG(svgEl, code){
+  try{
+    var writer = new ZXing.QRCodeWriter();
+    var hints = new Map();
+    hints.set(ZXing.EncodeHintType.ERROR_CORRECTION, "L");
+    var matrix = writer.encode(String(code||""), ZXing.BarcodeFormat.QR_CODE, 1, 1, hints);
+    var w = matrix.getWidth(), h = matrix.getHeight();
+    svgEl.setAttribute("viewBox", "0 0 " + w + " " + h);
+    svgEl.setAttribute("preserveAspectRatio", "none");
+    function rect(x,y){
+      var r = document.createElementNS("http://www.w3.org/2000/svg","rect");
+      r.setAttribute("x", x); r.setAttribute("y", y); r.setAttribute("width", 1); r.setAttribute("height", 1);
+      svgEl.appendChild(r);
+    }
+    for(var yy=0; yy<h; yy++){
+      for(var xx=0; xx<w; xx++){
+        if(matrix.get(xx, yy)) rect(xx, yy);
+      }
+    }
+  }catch(e){
+    var t = document.createElementNS("http://www.w3.org/2000/svg","text");
+    t.setAttribute("x", "2"); t.setAttribute("y", "10"); t.setAttribute("font-size", "5");
+    t.textContent = "QR generation failed";
+    svgEl.appendChild(t);
+  }
+}
+
+/* Pads/truncates a digit string to exactly dataLen significant digits (keeping the
+   rightmost — most-specific — digits if too long, left-padding with zeros if too
+   short), then appends a freshly computed GTIN check digit for that length. Used when
+   the user forces a specific symbology whose required digit count doesn't match the
+   original code — e.g. forcing a 14-digit ITF-14 value into EAN-13's 13-digit shape. */
+function forceDigitLength(code, dataLen){
+  var digits = String(code||"").replace(/\D/g, "");
+  if(digits.length > dataLen) digits = digits.slice(-dataLen);
+  while(digits.length < dataLen) digits = "0" + digits;
+  var arr = digits.split("").map(Number);
+  var sum = 0;
+  for(var i=0;i<arr.length;i++){
+    var posFromRight = arr.length - 1 - i;
+    sum += arr[i] * (posFromRight % 2 === 0 ? 3 : 1);
+  }
+  var check = (10 - (sum % 10)) % 10;
+  return digits + check;
+}
+
+/* Picks the symbology for the code: the user's forced format preference if set,
+   otherwise auto-detects by length (14 digits -> ITF-14, 13 digits -> EAN-13). */
 function renderBarcodeSVG(svgEl, code){
   while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
-  if(/^\d{14}$/.test(code||"")){ renderITF14SVG(svgEl, code); return; }
-  if(/^\d{13}$/.test(code||"")){ renderEAN13SVG(svgEl, code); return; }
+  if(!code) return;
+  var fmt = state.barcodeFormat || "auto";
+  if(fmt === "auto"){
+    if(/^\d{14}$/.test(code)){ renderITF14SVG(svgEl, code); return; }
+    if(/^\d{13}$/.test(code)){ renderEAN13SVG(svgEl, code); return; }
+    return;
+  }
+  if(fmt === "ean13"){ renderEAN13SVG(svgEl, forceDigitLength(code, 12)); return; }
+  if(fmt === "itf14"){ renderITF14SVG(svgEl, forceDigitLength(code, 13)); return; }
+  if(fmt === "code128"){ renderCode128SVG(svgEl, code); return; }
+  if(fmt === "qr"){ renderQRSVG(svgEl, code); return; }
 }
 
 /* ============ State ============ */
@@ -945,7 +1097,10 @@ var state = {
   torchOn: false,
   preferredFacingMode: "environment",
   allRecordsCache: [],
-  pendingDeleteEan: null
+  pendingDeleteEan: null,
+  barcodeFormat: (function(){
+    try{ return localStorage.getItem("cs_barcodeFormat") || "auto"; }catch(e){ return "auto"; }
+  })()
 };
 
 /* ============ Tabs ============ */
@@ -1368,6 +1523,8 @@ function showTicket(code, rec){
     badge.textContent = "VERIFIED";
     badge.className = "badge verified";
   }
+  $("#masterCartonNoBarcode").checked = !!(rec && rec.masterCartonNoBarcode);
+  $("#barcodeFormatSelect").value = state.barcodeFormat || "auto";
   renderBarcodeSVG($("#ticketBarcode"), code);
   $("#ticketMeta").textContent = rec ? ("Last updated " + fmtDate(rec.updatedAt)) : "No stored record — enter details to save";
 }
@@ -1539,6 +1696,7 @@ function saveRecord(){
   if(!state.currentEan){ toast("Capture or enter a barcode first", true); return; }
   var values = collectFormValues();
   if(!validateForm(values)) return;
+  values.masterCartonNoBarcode = $("#masterCartonNoBarcode").checked;
   var record = Object.assign({ean13: state.currentEan}, values);
   record.updatedAt = now();
   dbGet(state.currentEan).then(function(existing){
@@ -1635,29 +1793,45 @@ function doDelete(){
 
 /* ============ Export ============ */
 /* ============ Auto-seed built-in dataset (first run only) ============ */
+/* ============ Bulk-operation lock ============
+   Auto-seed, Clear All, and Import all write many records via dbBulkPut, each internally
+   split across several async IndexedDB transactions. Without coordination, one of these
+   could still be mid-flight (e.g. auto-seed loading on a fresh page) when another starts
+   (e.g. the user clears and immediately imports) — their batches interleave against the
+   same object store, and whichever happens to finish last silently wins, corrupting the
+   apparent result. This lock forces them to run one at a time, in the order requested. */
+var dbOpLock = Promise.resolve();
+function withDbLock(fn){
+  var result = dbOpLock.then(fn, fn); // always run, even if the previous op failed
+  dbOpLock = result.then(function(){}, function(){}); // keep the chain alive past errors
+  return result;
+}
+
 function autoSeedIfEmpty(){
-  return dbAll().then(function(list){
-    if(list.length > 0) return; // device already has data — never overwrite or duplicate
-    if(localStorage.getItem("cs_skipAutoSeed") === "true") return; // user explicitly started fresh — don't bring the bundled data back
-    return fetch("./seed-data.json").then(function(r){
-      if(!r.ok) throw new Error("seed fetch failed: " + r.status);
-      return r.json();
-    }).then(function(payload){
-      var keys = payload.keys;
-      var ts = now();
-      var toWrite = payload.rows.map(function(rowArr){
-        var rec = {};
-        for(var i=0;i<keys.length;i++){ rec[keys[i]] = rowArr[i]; }
-        rec.createdAt = ts;
-        rec.updatedAt = ts;
-        return rec;
+  return withDbLock(function(){
+    return dbAll().then(function(list){
+      if(list.length > 0) return; // device already has data — never overwrite or duplicate
+      if(localStorage.getItem("cs_skipAutoSeed") === "true") return; // user explicitly started fresh — don't bring the bundled data back
+      return fetch("./seed-data.json").then(function(r){
+        if(!r.ok) throw new Error("seed fetch failed: " + r.status);
+        return r.json();
+      }).then(function(payload){
+        var keys = payload.keys;
+        var ts = now();
+        var toWrite = payload.rows.map(function(rowArr){
+          var rec = {};
+          for(var i=0;i<keys.length;i++){ rec[keys[i]] = rowArr[i]; }
+          rec.createdAt = ts;
+          rec.updatedAt = ts;
+          return rec;
+        });
+        return dbBulkPut(toWrite).then(function(){
+          toast("Loaded " + toWrite.length + " built-in records");
+        });
       });
-      return dbBulkPut(toWrite).then(function(){
-        toast("Loaded " + toWrite.length + " built-in records");
-      });
+    }).catch(function(e){
+      console.warn("Auto-seed skipped:", e);
     });
-  }).catch(function(e){
-    console.warn("Auto-seed skipped:", e);
   });
 }
 
@@ -1669,12 +1843,12 @@ function refreshExportStats(){
 function buildRows(){
   return dbAll().then(function(list){
     list.sort(function(a,b){ return a.ean13.localeCompare(b.ean13); });
-    var header = ["EAN13 Barcode"].concat(FIELDS.map(function(f){return f.label;})).concat(["Created At","Updated At"]);
+    var header = ["EAN13 Barcode"].concat(FIELDS.map(function(f){return f.label;})).concat(["Master Carton with no Barcode","Created At","Updated At"]);
     var rows = list.map(function(rec){
       return [rec.ean13].concat(FIELDS.map(function(f){
         var v = rec[f.key];
         return (v===undefined||v===null) ? "" : v;
-      })).concat([rec.createdAt||"", rec.updatedAt||""]);
+      })).concat([rec.masterCartonNoBarcode ? "Yes" : "No", rec.createdAt||"", rec.updatedAt||""]);
     });
     return {header: header, rows: rows};
   });
@@ -1736,7 +1910,7 @@ function updateNavHeight(){
 }
 
 /* ============ Import (CSV / TXT / XLSX from another device) ============ */
-var LABEL_TO_KEY = {"EAN13 Barcode": "ean13"};
+var LABEL_TO_KEY = {"EAN13 Barcode": "ean13", "Master Carton with no Barcode": "masterCartonNoBarcode"};
 FIELDS.forEach(function(f){ LABEL_TO_KEY[f.label] = f.key; });
 
 function parseCSVText(text){
@@ -1778,7 +1952,7 @@ function rowsToRecords(rows){
   for(var r=1; r<rows.length; r++){
     var row = rows[r];
     var ean = String(row[eanIdx] === undefined ? "" : row[eanIdx]).trim();
-    if(!/^\d{13}$/.test(ean)) continue;
+    if(!/^\d{13}$/.test(ean) && !/^\d{14}$/.test(ean)) continue;
     var rec = {ean13: ean};
     for(var c=0;c<keys.length;c++){
       var key = keys[c];
@@ -1786,6 +1960,10 @@ function rowsToRecords(rows){
       var raw = row[c];
       if(key === "createdAt" || key === "updatedAt"){
         if(raw) rec[key] = String(raw);
+        continue;
+      }
+      if(key === "masterCartonNoBarcode"){
+        rec[key] = (String(raw).trim().toLowerCase() === "yes");
         continue;
       }
       var fieldDef = FIELDS.filter(function(f){ return f.key === key; })[0];
@@ -1910,31 +2088,33 @@ function processImportRows(rows){
 }
 
 function applyImport(incoming, mode){
-  dbAll().then(function(existingList){
-    var existingMap = {};
-    existingList.forEach(function(r){ existingMap[r.ean13] = r; });
-    var toWrite = [];
-    var added = 0, overridden = 0, skipped = 0;
-    incoming.forEach(function(rec){
-      var existing = existingMap[rec.ean13];
-      if(!existing){
-        var toSave = Object.assign({}, rec);
-        toSave.createdAt = rec.createdAt || now();
-        toSave.updatedAt = rec.updatedAt || now();
-        toWrite.push(toSave);
-        added++;
-      }else if(mode === "override"){
-        var merged = Object.assign({}, existing, rec, {ean13: rec.ean13});
-        merged.createdAt = existing.createdAt || rec.createdAt || now();
-        merged.updatedAt = now();
-        toWrite.push(merged);
-        overridden++;
-      }else{
-        skipped++;
-      }
-    });
-    return dbBulkPut(toWrite).then(function(){
-      return {added: added, overridden: overridden, skipped: skipped};
+  withDbLock(function(){
+    return dbAll().then(function(existingList){
+      var existingMap = {};
+      existingList.forEach(function(r){ existingMap[r.ean13] = r; });
+      var toWrite = [];
+      var added = 0, overridden = 0, skipped = 0;
+      incoming.forEach(function(rec){
+        var existing = existingMap[rec.ean13];
+        if(!existing){
+          var toSave = Object.assign({}, rec);
+          toSave.createdAt = rec.createdAt || now();
+          toSave.updatedAt = rec.updatedAt || now();
+          toWrite.push(toSave);
+          added++;
+        }else if(mode === "override"){
+          var merged = Object.assign({}, existing, rec, {ean13: rec.ean13});
+          merged.createdAt = existing.createdAt || rec.createdAt || now();
+          merged.updatedAt = now();
+          toWrite.push(merged);
+          overridden++;
+        }else{
+          skipped++;
+        }
+      });
+      return dbBulkPut(toWrite).then(function(){
+        return {added: added, overridden: overridden, skipped: skipped};
+      });
     });
   }).then(function(counts){
     var msg = counts.added + " added";
@@ -2046,33 +2226,35 @@ function handleCubiscanLogFiles(fileList){
 }
 
 function applyCubiscanLogImport(records, mode){
-  dbAll().then(function(existingList){
-    var existingMap = {};
-    existingList.forEach(function(r){ existingMap[r.ean13] = r; });
-    var toWrite = [];
-    var added = 0, updated = 0, skipped = 0;
-    records.forEach(function(rec){
-      var existing = existingMap[rec.ean13];
-      if(!existing){
-        var toSave = Object.assign(defaultNewRecordFields(), rec);
-        toSave.createdAt = now();
-        toSave.updatedAt = now();
-        toWrite.push(toSave);
-        added++;
-      }else if(mode === "override"){
-        // Only the four measured fields are present on `rec`, so this only ever
-        // touches dimensions/weight — every other field on the existing record
-        // (quantities, pallet type, etc.) is left completely untouched.
-        var merged = Object.assign({}, existing, rec);
-        merged.updatedAt = now();
-        toWrite.push(merged);
-        updated++;
-      }else{
-        skipped++;
-      }
-    });
-    return dbBulkPut(toWrite).then(function(){
-      return {added: added, updated: updated, skipped: skipped};
+  withDbLock(function(){
+    return dbAll().then(function(existingList){
+      var existingMap = {};
+      existingList.forEach(function(r){ existingMap[r.ean13] = r; });
+      var toWrite = [];
+      var added = 0, updated = 0, skipped = 0;
+      records.forEach(function(rec){
+        var existing = existingMap[rec.ean13];
+        if(!existing){
+          var toSave = Object.assign(defaultNewRecordFields(), rec);
+          toSave.createdAt = now();
+          toSave.updatedAt = now();
+          toWrite.push(toSave);
+          added++;
+        }else if(mode === "override"){
+          // Only the four measured fields are present on `rec`, so this only ever
+          // touches dimensions/weight — every other field on the existing record
+          // (quantities, pallet type, etc.) is left completely untouched.
+          var merged = Object.assign({}, existing, rec);
+          merged.updatedAt = now();
+          toWrite.push(merged);
+          updated++;
+        }else{
+          skipped++;
+        }
+      });
+      return dbBulkPut(toWrite).then(function(){
+        return {added: added, updated: updated, skipped: skipped};
+      });
     });
   }).then(function(counts){
     var msg = counts.added + " new record" + (counts.added===1?"":"s") + " created";
@@ -2986,11 +3168,13 @@ function doClearAllRecords(){
    time — for a large dataset, one-by-one deletes can take many seconds with no
    feedback, while clear() is near-instant regardless of how many records exist. */
 function dbClearStore(){
-  return new Promise(function(resolve, reject){
-    var tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).clear();
-    tx.oncomplete = function(){ resolve(); };
-    tx.onerror = function(e){ reject(e); };
+  return withDbLock(function(){
+    return new Promise(function(resolve, reject){
+      var tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).clear();
+      tx.oncomplete = function(){ resolve(); };
+      tx.onerror = function(e){ reject(e); };
+    });
   });
 }
 
@@ -3146,6 +3330,14 @@ function init(){
   });
 
   $("#saveBtn").addEventListener("click", saveRecord);
+  $("#masterCartonNoBarcode").addEventListener("change", function(){
+    if(state.currentIsExisting) markOverride();
+  });
+  $("#barcodeFormatSelect").addEventListener("change", function(){
+    state.barcodeFormat = this.value;
+    try{ localStorage.setItem("cs_barcodeFormat", this.value); }catch(e){}
+    if(state.currentEan){ renderBarcodeSVG($("#ticketBarcode"), state.currentEan); }
+  });
   $("#discardBtn").addEventListener("click", clearCapture);
   $("#deleteBtn").addEventListener("click", confirmDeleteCurrent);
 
