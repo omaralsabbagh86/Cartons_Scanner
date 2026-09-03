@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V31 — Offline Manifest</title>
+<title>Carton Scanner V32 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -159,6 +159,7 @@ body{display:flex;flex-direction:column;}
 .ticket .code{font-family:var(--mono);font-size:24px;letter-spacing:.04em;color:var(--text-hi);word-break:break-all;}
 .ticket .code-label{font-family:var(--mono);font-size:10px;color:var(--text-mid);letter-spacing:.1em;text-transform:uppercase;}
 .barcode-svg{margin:10px auto 0;height:56px;width:100%;max-width:13cm;display:block;background:#fff;border-radius:4px;padding:0;}
+.barcode-svg.qr-mode{height:112px;width:112px;max-width:112px;}
 .barcode-svg rect{fill:#000;}
 .barcode-svg text{fill:#000;}
 
@@ -338,7 +339,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V31</h1>
+  <h1>Carton Scanner V32</h1>
 </div>
 
 <div class="screens">
@@ -714,7 +715,7 @@ var FIELDS = [
   {key:"cartonWeight", label:"Carton Weight (kg)", type:"number"},
   {key:"cartonsPerPallet", label:"Master Cartons / Pallet", type:"integer"},
   {key:"palletType", label:"Pallet Type", type:"select", options:["Small","Large"], defaultValue:"Large"},
-  {key:"palletFlow", label:"Pallet Of", type:"select", options:["Inbound","Outbound","Both","Whole Sale"], defaultValue:"Inbound"}
+  {key:"palletFlow", label:"Pallet Of", type:"select", options:["Inbound","Outbound","Whole Sale","Storing","All Types"], defaultValue:"Inbound", allowManual:true}
 ];
 
 /* ============ DB (IndexedDB) ============ */
@@ -1070,6 +1071,7 @@ function forceDigitLength(code, dataLen){
    otherwise auto-detects by length (14 digits -> ITF-14, 13 digits -> EAN-13). */
 function renderBarcodeSVG(svgEl, code){
   while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+  svgEl.classList.remove("qr-mode");
   if(!code) return;
   var fmt = state.barcodeFormat || "auto";
   if(fmt === "auto"){
@@ -1080,7 +1082,7 @@ function renderBarcodeSVG(svgEl, code){
   if(fmt === "ean13"){ renderEAN13SVG(svgEl, forceDigitLength(code, 12)); return; }
   if(fmt === "itf14"){ renderITF14SVG(svgEl, forceDigitLength(code, 13)); return; }
   if(fmt === "code128"){ renderCode128SVG(svgEl, code); return; }
-  if(fmt === "qr"){ renderQRSVG(svgEl, code); return; }
+  if(fmt === "qr"){ svgEl.classList.add("qr-mode"); renderQRSVG(svgEl, code); return; }
 }
 
 /* ============ State ============ */
@@ -1590,6 +1592,47 @@ function fillForm(rec){
     }
 
     var input;
+    if(f.type === "select" && f.allowManual){
+      var sel2 = document.createElement("select");
+      sel2.id = "f_" + f.key;
+      sel2.dataset.key = f.key;
+      f.options.forEach(function(opt){
+        var o = document.createElement("option");
+        o.value = opt; o.textContent = opt;
+        sel2.appendChild(o);
+      });
+      var manualOpt2 = document.createElement("option");
+      manualOpt2.value = "__manual__"; manualOpt2.textContent = "Manual entry…";
+      sel2.appendChild(manualOpt2);
+
+      var manualInput2 = document.createElement("input");
+      manualInput2.type = "text";
+      manualInput2.placeholder = "Enter value";
+      manualInput2.id = "f_" + f.key + "_manual";
+      manualInput2.style.marginTop = "6px";
+      manualInput2.style.display = "none";
+
+      var existing2 = (rec && rec[f.key] !== undefined && rec[f.key] !== null) ? rec[f.key] : f.defaultValue;
+      if(existing2 !== undefined && f.options.indexOf(existing2) !== -1){
+        sel2.value = existing2;
+      }else if(existing2 !== undefined && existing2 !== null && existing2 !== ""){
+        sel2.value = "__manual__";
+        manualInput2.style.display = "block";
+        manualInput2.value = existing2;
+      }
+      sel2.addEventListener("change", function(){
+        manualInput2.style.display = (sel2.value === "__manual__") ? "block" : "none";
+        if(sel2.value === "__manual__") manualInput2.focus();
+        if(rec) markOverride();
+      });
+      manualInput2.addEventListener("input", function(){ if(rec) markOverride(); });
+      manualInput2.addEventListener("change", function(){ if(rec) markOverride(); });
+
+      wrap.appendChild(sel2);
+      wrap.appendChild(manualInput2);
+      grid.appendChild(wrap);
+      return;
+    }
     if(f.type === "select"){
       input = document.createElement("select");
       f.options.forEach(function(opt){
@@ -1658,7 +1701,12 @@ function collectFormValues(){
     var el = $("#f_" + f.key);
     if(!el) return;
     if(f.type === "select"){
-      out[f.key] = el.value;
+      if(f.allowManual && el.value === "__manual__"){
+        var manualSel = $("#f_" + f.key + "_manual");
+        out[f.key] = manualSel ? manualSel.value : "";
+      }else{
+        out[f.key] = el.value;
+      }
     }else if(f.type === "integer"){
       var iv = el.value;
       out[f.key] = iv === "" ? null : Math.round(Number(iv));
@@ -1792,47 +1840,18 @@ function doDelete(){
 }
 
 /* ============ Export ============ */
-/* ============ Auto-seed built-in dataset (first run only) ============ */
 /* ============ Bulk-operation lock ============
-   Auto-seed, Clear All, and Import all write many records via dbBulkPut, each internally
-   split across several async IndexedDB transactions. Without coordination, one of these
-   could still be mid-flight (e.g. auto-seed loading on a fresh page) when another starts
-   (e.g. the user clears and immediately imports) — their batches interleave against the
-   same object store, and whichever happens to finish last silently wins, corrupting the
-   apparent result. This lock forces them to run one at a time, in the order requested. */
+   Clear All and Import both write many records via dbBulkPut, each internally split
+   across several async IndexedDB transactions. Without coordination, one of these could
+   still be mid-flight when another starts (e.g. the user clears and immediately
+   imports) — their batches interleave against the same object store, and whichever
+   happens to finish last silently wins, corrupting the apparent result. This lock
+   forces them to run one at a time, in the order requested. */
 var dbOpLock = Promise.resolve();
 function withDbLock(fn){
   var result = dbOpLock.then(fn, fn); // always run, even if the previous op failed
   dbOpLock = result.then(function(){}, function(){}); // keep the chain alive past errors
   return result;
-}
-
-function autoSeedIfEmpty(){
-  return withDbLock(function(){
-    return dbAll().then(function(list){
-      if(list.length > 0) return; // device already has data — never overwrite or duplicate
-      if(localStorage.getItem("cs_skipAutoSeed") === "true") return; // user explicitly started fresh — don't bring the bundled data back
-      return fetch("./seed-data.json").then(function(r){
-        if(!r.ok) throw new Error("seed fetch failed: " + r.status);
-        return r.json();
-      }).then(function(payload){
-        var keys = payload.keys;
-        var ts = now();
-        var toWrite = payload.rows.map(function(rowArr){
-          var rec = {};
-          for(var i=0;i<keys.length;i++){ rec[keys[i]] = rowArr[i]; }
-          rec.createdAt = ts;
-          rec.updatedAt = ts;
-          return rec;
-        });
-        return dbBulkPut(toWrite).then(function(){
-          toast("Loaded " + toWrite.length + " built-in records");
-        });
-      });
-    }).catch(function(e){
-      console.warn("Auto-seed skipped:", e);
-    });
-  });
 }
 
 function refreshExportStats(){
@@ -3147,7 +3166,7 @@ function clearAllRecords(){
   dbAll().then(function(list){
     $("#clearAllModalText").textContent =
       "This will permanently delete all " + list.length + " stored record" + (list.length === 1 ? "" : "s") +
-      " from this device, including any built-in starter data. This cannot be undone.";
+      " from this device. This cannot be undone.";
     $("#clearAllModalBackdrop").classList.add("show");
   });
 }
@@ -3155,7 +3174,6 @@ function doClearAllRecords(){
   $("#clearAllModalBackdrop").classList.remove("show");
   toast("Clearing all records…");
   dbClearStore().then(function(){
-    localStorage.setItem("cs_skipAutoSeed", "true"); // don't silently bring the bundled dataset back
     clearCapture();
     refreshRecordsList();
     refreshExportStats();
@@ -3303,8 +3321,6 @@ function initGlobalShortcutListener(){
 /* ============ Wire up ============ */
 function init(){
   openDB().then(function(){
-    return autoSeedIfEmpty();
-  }).then(function(){
     refreshRecordsList();
   }).catch(function(){
     toast("Storage unavailable on this browser", true);

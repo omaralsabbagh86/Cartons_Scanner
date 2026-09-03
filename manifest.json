@@ -1,6 +1,6 @@
 {
-  "name": "Carton Scanner V31 — Offline Manifest",
-  "short_name": "Carton Scanner V31",
+  "name": "Carton Scanner V32 — Offline Manifest",
+  "short_name": "Carton Scanner V32",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
