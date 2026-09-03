@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#12161A">
-<title>Carton Scanner V32 — Offline Manifest</title>
+<title>Carton Scanner V33 — Offline Manifest</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -339,7 +339,7 @@ body{display:flex;flex-direction:column;}
 
 <div class="topbar">
   <div class="eyebrow"><span class="dot"></span> OFFLINE · LOCAL DEVICE STORAGE</div>
-  <h1>Carton Scanner V32</h1>
+  <h1>Carton Scanner V33</h1>
 </div>
 
 <div class="screens">
@@ -1028,16 +1028,37 @@ function renderQRSVG(svgEl, code){
     hints.set(ZXing.EncodeHintType.ERROR_CORRECTION, "L");
     var matrix = writer.encode(String(code||""), ZXing.BarcodeFormat.QR_CODE, 1, 1, hints);
     var w = matrix.getWidth(), h = matrix.getHeight();
-    svgEl.setAttribute("viewBox", "0 0 " + w + " " + h);
-    svgEl.setAttribute("preserveAspectRatio", "none");
+
+    // ZXing bakes its own standard quiet-zone border into the returned matrix, which
+    // left a lot of unused white space around the actual pattern. Trim to the real
+    // pattern's bounding box, then re-add only the small margin needed for the
+    // pattern itself to fill 95% of the drawn square.
+    var minX=w, minY=h, maxX=-1, maxY=-1;
+    for(var yy=0; yy<h; yy++){
+      for(var xx=0; xx<w; xx++){
+        if(matrix.get(xx, yy)){
+          if(xx<minX) minX=xx;
+          if(xx>maxX) maxX=xx;
+          if(yy<minY) minY=yy;
+          if(yy>maxY) maxY=yy;
+        }
+      }
+    }
+    if(maxX < 0){ minX=0; minY=0; maxX=w-1; maxY=h-1; } // shouldn't happen, but stay safe
+    var coreSize = Math.max(maxX - minX + 1, maxY - minY + 1);
+    var totalSize = coreSize / 0.95;
+    var margin = (totalSize - coreSize) / 2;
+
+    svgEl.setAttribute("viewBox", "0 0 " + totalSize + " " + totalSize);
+    svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
     function rect(x,y){
       var r = document.createElementNS("http://www.w3.org/2000/svg","rect");
       r.setAttribute("x", x); r.setAttribute("y", y); r.setAttribute("width", 1); r.setAttribute("height", 1);
       svgEl.appendChild(r);
     }
-    for(var yy=0; yy<h; yy++){
-      for(var xx=0; xx<w; xx++){
-        if(matrix.get(xx, yy)) rect(xx, yy);
+    for(var yy2=minY; yy2<=maxY; yy2++){
+      for(var xx2=minX; xx2<=maxX; xx2++){
+        if(matrix.get(xx2, yy2)) rect(xx2 - minX + margin, yy2 - minY + margin);
       }
     }
   }catch(e){
